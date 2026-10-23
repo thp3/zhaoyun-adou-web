@@ -22,6 +22,8 @@ const draft = (over: Partial<ResultDraft> = {}): ResultDraft => ({
   wave: 20,
   tick: 1000,
   kills: 50,
+  drops: [],
+  formed: [],
   ...over,
 });
 
@@ -54,7 +56,7 @@ describe('結算金幣政策', () => {
   it('套用勝場：局數、當日、連勝、段位、教學旗標', () => {
     const p = createDefaultProfile(T0, '2026-10-23', { staminaMax: 30 });
     const { profile, delta } = applySettlement(p, draft(), data);
-    expect(delta).toEqual({ outcome: 'win', goldDelta: 20, starBefore: 0, starAfter: 2 });
+    expect(delta).toEqual({ outcome: 'win', goldDelta: 20, starBefore: 0, starAfter: 2, drops: [] });
     expect(profile.stats).toEqual({ win: 1, lose: 0, winDay: 1, loseDay: 0, winStreak: 1 });
     expect(profile.tutorial.firstBattleDone).toBe(true);
   });
@@ -83,7 +85,7 @@ describe('開局與結算交易', () => {
     rulesetVersion: 'web-ai-v1',
     cost: 5,
     stamina: RULES,
-    makeSetup: () => ({ seed: 1, mapId: 0, totalRounds: 0, roundOfDay: 1, addHp: 0, aiEnabled: false, difficulty: 0, aiStar: 0, playerEquip: new Array(12).fill(-1), aiEquip: new Array(12).fill(-1), playerItems: [], aiItems: [] }),
+    makeSetup: () => ({ seed: 1, mapId: 0, totalRounds: 0, roundOfDay: 1, addHp: 0, aiEnabled: false, difficulty: 0, aiStar: 0, playerEquip: new Array(12).fill(-1), aiEquip: new Array(12).fill(-1), playerItems: [], aiItems: [], weaponUnlocked: false, tutorial: false }),
   });
 
   it('連點開始：只建立一場、只扣一次 5 體力', async () => {

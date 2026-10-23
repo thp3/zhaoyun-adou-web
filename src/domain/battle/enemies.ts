@@ -1,6 +1,7 @@
 // 敵人：血量公式（原版 It.Ty）、出生、沿路移動與擊退、走到阿斗、受傷與死亡獎勵。
 import { BUFF, clearBuffs, enemyHalted, enemyMaxHp, hasBuff, inheritGlobals, removeBuffType, setBuffDamageHook, statBonus } from './buffs';
 import { allocId, schedule } from './create';
+import { nextInt, pickWeighted } from './rng';
 import { gainExp } from './generals';
 import { weaponOnEnemyDied } from './weapons';
 import { TICK_MS, ticks, type AttackSource, type Enemy, type Side, type StepContext, type World } from './types';
@@ -25,6 +26,7 @@ export interface SpawnOptions {
   /** 指定位置與路徑索引（殭屍、傀儡）；預設在出生點 */
   at?: { x: number; y: number; pathIdx: number };
   boss?: number;
+  carries?: boolean;
 }
 
 export function spawnEnemy(w: World, side: Side, ctx: StepContext, opt: SpawnOptions = {}): Enemy {
@@ -45,6 +47,7 @@ export function spawnEnemy(w: World, side: Side, ctx: StepContext, opt: SpawnOpt
     knockVel: 0,
     scaleBonus: 0,
     bossState: opt.boss === undefined ? null : { bossId: opt.boss, cd: 0, cast: -1, castData: {}, usedOnce: false },
+    carries: opt.carries ?? false,
   };
   w.enemies[e.id] = e;
   inheritGlobals(w, e.id, side, 'enemies', ctx);
@@ -149,6 +152,7 @@ export function damageEnemy(w: World, e: Enemy, amount: number, src: AttackSourc
   camp.gold += reward;
   camp.kills += 1;
   removeEnemy(w, e);
+  if (e.carries && e.side === 0) dropFragment(w, e, ctx);
   creditKill(w, e, src, ctx);
   onEnemyDied(w, e);
   weaponOnEnemyDied(w, e, ctx);
@@ -193,6 +197,31 @@ export function reviveZombie(w: World, side: Side, x: number, y: number, pathIdx
   if (w.soulCall[side] < 0 || w.soulCall[side] >= 3) return;
   w.soulCall[side] += 1;
   spawnEnemy(w, side, ctx, { kind: 'zombie', at: { x, y, pathIdx } });
+}
+
+/**
+ * 碎片掉落（原版 St.su）：依累計局數所在區間的稀有度權重抽稀有度（普通固定 0），再在該稀有度均勻抽武器。
+ * 只記玩家防區；結算時一次入帳（重構政策，原版掉落即入帳且勝利會再加一次）。
+ */
+function dropFragment(w: World, e: Enemy, ctx: StepContext): void {
+  if (!w.weaponUnlocked) return;
+  const fd = ctx.data.weapons.fragmentDrop;
+  let bracket = 0;
+  for (let i = fd.roundThresholds.length - 1; i >= 0; i--) {
+    if (w.totalRounds > fd.roundThresholds[i]!) {
+      bracket = i;
+      break;
+    }
+  }
+  const weights = [...fd.rarityWeightsByBracket[bracket]!];
+  weights[0] = 0;
+  if (weights.every((x) => x <= 0)) return;
+  const rarity = pickWeighted(w.rng, 'combat', weights);
+  const pool = ctx.data.weapons.weapons.filter((x) => x.rarity === rarity);
+  if (pool.length === 0) return;
+  const weaponId = pool[nextInt(w.rng, 'combat', pool.length)]!.id;
+  w.drops.push(weaponId);
+  ctx.events.push({ type: 'drop', weaponId, x: e.x, y: e.y });
 }
 
 /** 有效最大血量（含 buff） */

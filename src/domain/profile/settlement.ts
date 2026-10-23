@@ -4,6 +4,7 @@ import type { EndReason } from '../battle/types';
 import { dayKeyOf, weekdayMonFirst } from '../time/calendar';
 import { registerDayIndex } from './daily';
 import { roundOfDay, type Profile } from './profile';
+import { addFragments } from './inventory';
 import { rankToStar, starToRank } from './rank';
 
 export interface ResultDraft {
@@ -15,6 +16,10 @@ export interface ResultDraft {
   wave: number;
   tick: number;
   kills: number;
+  /** 玩家防區已確認的碎片掉落（weaponId，可重複） */
+  drops: number[];
+  /** 本局成形過的武將 key（圖鑑解鎖） */
+  formed: string[];
 }
 
 export interface SettlementDelta {
@@ -22,6 +27,8 @@ export interface SettlementDelta {
   goldDelta: number;
   starBefore: number;
   starAfter: number;
+  /** 入帳的碎片 */
+  drops: number[];
 }
 
 /** 原版 Pt.Cu：勝 +1、敗 -1，跨段位時依各段 level 閾值處理；皇帝 53 不封頂。 */
@@ -66,9 +73,10 @@ export function applySettlement(p: Profile, draft: ResultDraft, data: GameData):
   const starAfter = changeRankStar(starBefore, win ? 1 : -1, data.ranks.ranks);
   const rankId = starToRank(starAfter).rankId;
   return {
-    delta: { outcome: draft.outcome, goldDelta, starBefore, starAfter },
+    delta: { outcome: draft.outcome, goldDelta, starBefore, starAfter, drops: [...draft.drops] },
     profile: {
-      ...p,
+      ...addFragments(p, draft.drops, data),
+      mergedGenerals: [...new Set([...p.mergedGenerals, ...draft.formed])],
       gold: p.gold + goldDelta,
       rank: { ...p.rank, curStar: starAfter },
       stats: {

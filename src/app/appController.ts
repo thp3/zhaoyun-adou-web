@@ -12,6 +12,9 @@ import { applySettlement, selectMapId, type ResultDraft } from '../domain/profil
 import { recoverStamina, type StaminaRules } from '../domain/profile/stamina';
 import { dayKeyOf, type Clock } from '../domain/time/calendar';
 import { BattleStore, type BattleRecord, type Receipt } from '../storage/battleStore';
+import { MetaStore } from '../storage/metaStore';
+import { equip, grantStarterWeapons, recycle, unequip } from '../domain/profile/inventory';
+import { claimRankReward, createShopSession, purchase, type ShopSession } from '../domain/profile/shop';
 import type { GameDatabase } from '../storage/db';
 import { buildSaveExport, type SaveExport } from '../storage/exportSave';
 import { ProfileRepository, StorageError } from '../storage/profileRepository';
@@ -56,6 +59,7 @@ export class AppController {
   private data: GameData | null = null;
   private repo: ProfileRepository | null = null;
   private store: BattleStore | null = null;
+  private meta: MetaStore | null = null;
   private profile: Profile | null = null;
   private recovery: RecoveryReason | null = null;
   private lastSavedAt: number | null = null;
@@ -126,6 +130,7 @@ export class AppController {
       db = await this.deps.openDb();
       this.repo = new ProfileRepository(db);
       this.store = new BattleStore(db);
+      this.meta = new MetaStore(db);
     } catch (e) {
       return this.fail({ kind: 'storage-unavailable', message: errorText(e) });
     }
@@ -183,6 +188,8 @@ export class AppController {
       let next = p;
       const daily = applyDailyReset(next, dayKeyOf(now, zone), hasActive);
       if (daily.kind === 'reset') next = daily.profile;
+      // 註冊第 3 天解鎖武器：首次發各類型普通武器
+      next = grantStarterWeapons(next, registerDayIndex(next, dayKeyOf(now, zone)), this.data!);
       const stamina = recoverStamina(next.stamina, now, rules);
       if (stamina !== next.stamina) next = { ...next, stamina };
       return next;
@@ -214,6 +221,70 @@ export class AppController {
     this.notice = '已建立新存檔，舊存檔保留在備份區。';
     this.machine.go('PROFILE_READY');
     this.machine.go('LOBBY');
+  }
+
+// ---------------- 局外：武器、商店、段位 ----------------
+
+  /** 以目前 Profile 先試算；成功才提交，失敗回傳原因 */
+  private async tryCommit(fn: (p: Profile) => { ok: true; profile: Profile } | { ok: false; reason: string }): Promise<string | null> {
+    if (!this.profile) return '尚未載入存檔';
+    const pre = fn(this.profile);
+    if (!pre.ok) return pre.reason;
+    let reason: string | null = null;
+    await this.commit((p) => {
+      const r = fn(p);
+      if (r.ok) return r.profile;
+      reason = r.reason;
+      return p;
+    });
+    return reason;
+  }
+
+  equipWeapon(slot: number, weaponId: number): Promise<string | null> {
+    return this.tryCommit((p) => equip(p, slot, weaponId, this.data!));
+  }
+
+  unequipWeapon(slot: number): Promise<string | null> {
+    return this.tryCommit((p) => ({ ok: true, profile: unequip(p, slot) }));
+  }
+
+  recycleWeapons(rarities: number[]): Promise<string | null> {
+    return this.tryCommit((p) => recycle(p, rarities, this.data!));
+  }
+
+  clearNewWeapons(): Promise<string | null> {
+    return this.tryCommit((p) => ({ ok: true, profile: p.newWeaponIds.length ? { ...p, newWeaponIds: [] } : p }));
+  }
+
+  claimRankReward(): Promise<string | null> {
+    const today = dayKeyOf(this.deps.clock.now(), this.data!.economy.calendarZone);
+    return this.tryCommit((p) => {
+      const r = claimRankReward(p, today, this.data!, (star) => starToRank(star).rankId);
+      return r ? { ok: true, profile: r.profile } : { ok: false, reason: '今天已經領過了' };
+    });
+  }
+
+  async openShop(): Promise<ShopSession | null> {
+    if (!this.meta || !this.data) return null;
+    const data = this.data;
+    const rand = this.deps.random ?? Math.random;
+    const now = this.deps.clock.now();
+    return this.serial(() =>
+      this.meta!.openShop((p) => createShopSession(p, data, rand, now, `s${now.toString(36)}-${Math.floor(rand() * 1e9).toString(36)}`)),
+    );
+  }
+
+  async buyOffer(sessionId: string, index: number): Promise<{ ok: true; session: ShopSession } | { ok: false; reason: string }> {
+    if (!this.meta || !this.data) return { ok: false, reason: '尚未載入' };
+    const data = this.data;
+    const now = this.deps.clock.now();
+    const r = await this.serial(() => this.meta!.buy(sessionId, (p, s) => purchase(p, s, index, data, now, this.staminaRules())));
+    if (r.ok) {
+      this.profile = r.profile;
+      this.lastSavedAt = now;
+      this.emit();
+    }
+    return r;
   }
 
   dismissNotice(): void {
@@ -249,6 +320,9 @@ export class AppController {
             aiEnabled: true,
             playerEquip: [...p.equip],
             playerItems: p.items.map((i) => ({ ...i })),
+            weaponUnlocked: registerDayIndex(p, dayKeyOf(now, data.economy.calendarZone)) >= data.weapons.unlockOnRegisterDay,
+            // 首局教程：從未打過任何一局
+            tutorial: totalRounds(p) === 0 && !p.tutorial.firstBattleDone,
             ...generateOpponent(data, seed, p.rank.curStar, registerDayIndex(p, dayKeyOf(now, data.economy.calendarZone)), roundOfDay(p)),
           }),
         }),
@@ -376,6 +450,8 @@ export class AppController {
       wave: result.wave,
       tick: result.tick,
       kills: s.world.camps[0].kills,
+      drops: [...s.world.drops],
+      formed: [...s.world.formed],
     };
     this.machine.go('SETTLING');
     await this.saveDraftAndSettle(draft);
@@ -395,6 +471,9 @@ export class AppController {
       wave: b.progress.wave,
       tick: b.progress.tick,
       kills: b.progress.kills,
+      // 沒有快照：中途掉落無法還原（M6 補上）
+      drops: [],
+      formed: [],
     });
   }
 

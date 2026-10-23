@@ -99,6 +99,8 @@ export interface Enemy {
   scaleBonus: number;
   /** Boss 專屬狀態；普通敵人為 null */
   bossState: BossState | null;
+  /** 帶碎片：被擊殺時掉落一片武器碎片 */
+  carries: boolean;
 }
 
 export interface BossState {
@@ -368,7 +370,27 @@ export interface World {
   /** AI 單位傷害倍率（原版 nu.mh，教學 0.7） */
   aiDamageMultiplier: number;
   ai: AiState;
+  /** 武器系統已解鎖（註冊第 3 天起），才會掉碎片 */
+  weaponUnlocked: boolean;
+  /** 本波帶碎片敵人的出兵序號（雙方各一，-1 表示本波沒有） */
+  fragmentIndex: [number, number];
+  /** 玩家防區已確認的碎片掉落（結算時一次入帳） */
+  drops: number[];
+  /** 本局玩家成形過的武將 key（圖鑑解鎖） */
+  formed: string[];
+  /** 無盡模式：不設 20 波上限、不出 Boss（首局教程） */
+  endless: boolean;
+  /** 首局教程進度；一般對局為 null */
+  tutorial: TutorialState | null;
   result: BattleResult | null;
+}
+
+/** 首局教程（原版 Cn）：0 征兵 → 1 部署 → 2 指引中 → 3 開戰（第二次征兵固定） → 4 結束 */
+export interface TutorialState {
+  step: 0 | 1 | 2 | 3 | 4;
+  /** 已征兵次數（決定教程注入是否已消耗） */
+  recruits: number;
+  timer: number;
 }
 
 /** AI 五階段狀態；全部可序列化，恢復時不重設成 stage 1 */
@@ -412,6 +434,8 @@ export type BattleEvent =
   | { type: 'skill'; side: Side; name: string; x: number; y: number }
   | { type: 'blast'; x: number; y: number; r: number }
   | { type: 'buff'; targetId: number; buffType: number; x: number; y: number }
+  | { type: 'drop'; weaponId: number; x: number; y: number }
+  | { type: 'tutorial'; step: number }
   | { type: 'expanded'; x: number; y: number }
   | { type: 'waveStart'; wave: number }
   | { type: 'ended'; result: BattleResult };

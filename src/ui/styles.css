@@ -193,3 +193,21 @@ button small { display: block; font-size: .75rem; font-family: var(--font-sans);
 .item.armed { outline: 3px solid var(--gold); outline-offset: 1px; }
 .item.passive { border: 1px dashed var(--line); border-radius: var(--radius); color: var(--ink-2); }
 .item-ai { font-size: .8rem; }
+
+/* 局外面板 */
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.panel-head { display: flex; align-items: center; gap: 12px; }
+.panel-head h1 { margin: 0; }
+.panel-body { display: flex; flex-direction: column; gap: 16px; }
+.card-list { display: flex; flex-direction: column; gap: 6px; }
+.card-list h2 { font-size: 1.05rem; margin: 0 0 4px; }
+.row-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--paper-2); }
+.row-item.wrap { flex-wrap: wrap; }
+.row-item .grow { flex: 1; min-width: 0; }
+.row-item p { margin: 0; width: 100%; }
+.small { font-size: .82rem; }
+select { font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: .4rem; }
+.rank-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.rank-table th, .rank-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.rank-table tr.current td { color: var(--seal); font-weight: bold; }
+.tutorial-tip { padding: .5rem .8rem; border-left: 4px solid var(--gold); background: var(--paper-2); font-size: .95rem; }

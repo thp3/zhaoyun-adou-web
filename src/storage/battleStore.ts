@@ -18,6 +18,8 @@ const DraftSchema = z.object({
   wave: z.number().int().nonnegative(),
   tick: z.number().int().nonnegative(),
   kills: z.number().int().nonnegative(),
+  drops: z.array(z.number().int().nonnegative()).default([]),
+  formed: z.array(z.string()).default([]),
 });
 
 export const BattleRecordSchema = z.object({
@@ -41,6 +43,8 @@ export const BattleRecordSchema = z.object({
     playerEquip: z.array(z.number().int().min(-1)).length(12).default(() => new Array(12).fill(-1)),
     aiEquip: z.array(z.number().int().min(-1)).length(12).default(() => new Array(12).fill(-1)),
     playerItems: z.array(z.object({ id: z.number().int(), level: z.number().int().positive() })).default([]),
+    weaponUnlocked: z.boolean().default(false),
+    tutorial: z.boolean().default(false),
     aiItems: z.array(z.object({ id: z.number().int(), level: z.number().int().positive() })).default([]),
   }),
   progress: z.object({ wave: z.number().int().nonnegative(), tick: z.number().int().nonnegative(), kills: z.number().int().nonnegative() }),

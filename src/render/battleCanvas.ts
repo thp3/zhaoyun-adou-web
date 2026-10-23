@@ -320,6 +320,14 @@ function drawEnemy(ctx: CanvasRenderingContext2D, w: World, e: Enemy, o: DrawOpt
     ctx.fillStyle = ratio > 0.5 ? P.ok : ratio > 0.25 ? P.gold : P.bad;
     ctx.fillRect(e.x - 18, e.y - r - 10, 36 * ratio, 5);
   }
+  if (e.carries) {
+    // 帶碎片的敵人：金色外圈
+    ctx.strokeStyle = P.gold;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, (bs ? 30 : 21) * scale, 0, Math.PI * 2);
+    ctx.stroke();
+  }
   const g = statusGlyph(w, e.id);
   if (g) drawBadge(ctx, e.x + 16, e.y - 14, g, o);
   ctx.globalAlpha = 1;

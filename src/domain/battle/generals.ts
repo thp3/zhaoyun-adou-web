@@ -73,6 +73,7 @@ export function tryFormGeneral(w: World, a: Actor, ctx: StepContext): General | 
     g.level = levelFromExp(def, exp, ctx.data);
     for (const p of parts) p.generalId = g.id;
     w.generals[g.id] = g;
+    if (g.side === 0 && !w.formed.includes(def.key)) w.formed.push(def.key);
     equipWeapon(w, g, ctx);
     inheritGlobals(w, g.id, g.side, 'units', ctx);
     ctx.events.push({ type: 'generalFormed', generalId: g.id, side: g.side });

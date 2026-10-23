@@ -27,6 +27,10 @@ export interface CreateWorldParams {
   /** 雙方對局道具（存檔格式 {id, level}） */
   playerItems?: { id: number; level: number }[];
   aiItems?: { id: number; level: number }[];
+  /** 武器系統已解鎖（掉碎片） */
+  weaponUnlocked?: boolean;
+  /** 首局教程：AI 難度 0、傷害 0.7、無盡、不出 Boss */
+  tutorial?: boolean;
 }
 
 export function initialAiState(width: number, height: number): AiState {
@@ -78,7 +82,7 @@ export function createWorld(p: CreateWorldParams): World {
     kills: 0,
   });
 
-  const difficulty = Math.min(3, Math.max(0, p.difficulty ?? 0));
+  const difficulty = p.tutorial ? 0 : Math.min(3, Math.max(0, p.difficulty ?? 0));
   const camps: [CampState, CampState] = [camp(data.economy.battleStart.playerGold), camp(p.aiEnabled ? data.economy.battleStart.aiGold : 0)];
   // 難度 3 的 AI 牌庫另加鏟
   for (let i = 0; i < (p.aiEnabled ? data.ai.extraShovelsByDifficulty[difficulty]! : 0); i++) camps[1].deck.push('shovel');
@@ -124,7 +128,13 @@ export function createWorld(p: CreateWorldParams): World {
     addHp: p.addHp,
     aiEnabled: p.aiEnabled,
     difficulty,
-    aiDamageMultiplier: p.aiDamageMultiplier ?? 1,
+    aiDamageMultiplier: p.tutorial ? data.deck.tutorial.aiDamageMultiplier : (p.aiDamageMultiplier ?? 1),
+    weaponUnlocked: p.weaponUnlocked ?? false,
+    fragmentIndex: [-1, -1],
+    drops: [],
+    formed: [],
+    endless: p.tutorial ?? false,
+    tutorial: p.tutorial ? { step: 0, recruits: 0, timer: 0 } : null,
     ai: initialAiState(map.width, map.height),
     result: null,
   };

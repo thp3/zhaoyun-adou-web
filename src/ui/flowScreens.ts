@@ -27,6 +27,7 @@ export function renderOpponent(view: AppView, app: AppController): HTMLElement {
         ? '守住己方阿斗：撐過 20 波，或讓對方阿斗先失守即勝利。對手由本機產生，不是真人配對。'
         : '這場對局的 AI 不出手：撐過 20 波即勝利。',
     ),
+    b.setup.tutorial ? h('p', null, '這是教學局：對手很弱、沒有波數上限也不出 Boss，跟著提示操作即可。') : null,
     h('p', { class: 'muted' }, `已扣除 ${b.staminaCost} 體力。開始前取消會退還，開始後不退。`),
     h(
       'div',
@@ -83,6 +84,16 @@ export function renderResult(view: AppView, app: AppController): HTMLElement {
       { class: 'result-list' },
       h('dt', null, '金幣'),
       h('dd', null, `+${d.goldDelta}（已入帳）`),
+      h('dt', null, '碎片'),
+      h(
+        'dd',
+        null,
+        (d.drops ?? []).length === 0
+          ? '無'
+          : Object.entries((d.drops ?? []).reduce<Record<string, number>>((m, id) => ((m[id] = (m[id] ?? 0) + 1), m), {}))
+              .map(([id, n]) => `${data.weapons.weapons.find((x) => x.id === Number(id))?.name ?? id} ×${n}`)
+              .join('、') + '（已入帳）',
+      ),
       h('dt', null, '段位'),
       h(
         'dd',

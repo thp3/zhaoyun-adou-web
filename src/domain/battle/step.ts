@@ -8,7 +8,8 @@ import { moveEnemies, reviveZombie, spawnEnemy } from './enemies';
 import { isSkillAction, resolveSkill, updateSkillEntities } from './skills';
 import { resolveWeaponFx, updateWeaponEntities } from './weapons';
 import { resolveItemFx, updateItems } from './items';
-import { ticks, type BattleCommand, type BattleEvent, type BattleResult, type BattleRules, type StepContext, type World } from './types';
+import { nextFloat, nextInt } from './rng';
+import { ticks, type TutorialState, type BattleCommand, type BattleEvent, type BattleResult, type BattleRules, type StepContext, type World } from './types';
 
 export function stepWorld(w: World, commands: readonly BattleCommand[], rules: BattleRules): BattleEvent[] {
   const events: BattleEvent[] = [];
@@ -35,7 +36,8 @@ export function stepWorld(w: World, commands: readonly BattleCommand[], rules: B
   // 2. 命令：玩家命令，接著 AI 到決策點時產生命令（同一個驗證入口）
   for (const cmd of commands) applyCommand(w, cmd, ctx);
   updateAi(w, ctx);
-  // 3. 波次與出兵
+  // 3. 教程、波次與出兵
+  updateTutorial(w, ctx);
   updateWave(w, ctx);
   // 4. buff 到期與灼燒；Boss 冷卻與施法
   updateBuffs(w, ctx);
@@ -64,6 +66,11 @@ function updateWave(w: World, ctx: StepContext): void {
   s.timer += 1;
   switch (s.phase) {
     case 'ready': {
+      // 教程：等部署指引結束才開始出兵（原版初始延遲設為極大值）
+      if (w.tutorial) {
+        if (w.tutorial.step >= 2) startWave(w, 1, ctx);
+        break;
+      }
       const bothReady = w.camps[0].refreshed && (w.camps[1].refreshed || !w.aiEnabled);
       if (s.timer >= ticks(v.initialDelayMs) || bothReady) startWave(w, 1, ctx);
       break;
@@ -72,10 +79,10 @@ function updateWave(w: World, ctx: StepContext): void {
       // 每滿 1500ms 雙方各出一隻；跨門檻歸零、不補發
       if (s.timer >= ticks(v.spawnIntervalMs)) {
         s.timer = 0;
-        spawnEnemy(w, 0, ctx);
-        spawnEnemy(w, 1, ctx);
+        spawnEnemy(w, 0, ctx, { carries: w.fragmentIndex[0] === s.spawned });
+        spawnEnemy(w, 1, ctx, { carries: w.fragmentIndex[1] === s.spawned });
         s.spawned += 1;
-        if (s.spawned >= v.spawnCountByWave[s.wave - 1]!) {
+        if (s.spawned >= waveCount(w, s.wave, ctx)) {
           s.phase = 'intermission';
           s.timer = 0;
         }
@@ -83,7 +90,7 @@ function updateWave(w: World, ctx: StepContext): void {
       break;
     case 'intermission':
       if (s.timer >= ticks(v.intermissionMs)) {
-        if (s.wave >= v.waveCount) s.phase = 'done';
+        if (s.wave >= v.waveCount && !w.endless) s.phase = 'done';
         else startWave(w, s.wave + 1, ctx);
       }
       break;
@@ -96,8 +103,36 @@ function startWave(w: World, wave: number, ctx: StepContext): void {
   w.wave = { phase: 'spawning', wave, timer: 0, spawned: 0 };
   expireRoundBuffs(w);
   aiWaveBonus(w, wave, ctx.data);
-  maybeSpawnBoss(w, wave, ctx);
+  // 教程（無盡）不出 Boss
+  if (!w.endless) maybeSpawnBoss(w, wave, ctx);
+  // 本波帶碎片的敵人：雙方各以 6.5% 機率指定一個出兵序號
+  const n = waveCount(w, wave, ctx);
+  const fd = ctx.data.weapons.fragmentDrop;
+  w.fragmentIndex = [0, 1].map(() => (w.weaponUnlocked && nextFloat(w.rng, 'combat') < fd.chancePerEnemy ? nextInt(w.rng, 'combat', n) : -1)) as [number, number];
   ctx.events.push({ type: 'waveStart', wave });
+}
+
+/** 每波出兵數；無盡模式超過 20 波每波多 2 隻 */
+function waveCount(w: World, wave: number, ctx: StepContext): number {
+  const counts = ctx.data.waves.spawnCountByWave;
+  if (wave <= counts.length) return counts[wave - 1]!;
+  return counts[counts.length - 1]! + ctx.data.waves.endlessExtraPerWave * (wave - counts.length);
+}
+
+/** 首局教程進度 */
+function updateTutorial(w: World, ctx: StepContext): void {
+  const t = w.tutorial;
+  if (!t || t.step === 4) return;
+  t.timer += 1;
+  const next = (step: TutorialState['step']) => {
+    t.step = step;
+    t.timer = 0;
+    ctx.events.push({ type: 'tutorial', step });
+  };
+  if (t.step === 0 && w.camps[0].refreshed) next(1);
+  else if (t.step === 1 && t.timer >= ticks(5000)) next(2);
+  else if (t.step === 2 && t.recruits >= 2) next(3);
+  else if (t.step === 3 && t.timer >= ticks(8000)) next(4);
 }
 
 function judge(w: World): BattleResult | null {

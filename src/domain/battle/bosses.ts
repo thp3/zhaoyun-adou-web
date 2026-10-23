@@ -23,7 +23,8 @@ export function maybeSpawnBoss(w: World, wave: number, ctx: StepContext): void {
   const def = v.bosses[bossId]!;
   const hp = enemyHp(w, wave, ctx) * def.hpMultiplier;
   for (const side of [0, 1] as const) {
-    spawnEnemy(w, side, ctx, { hp, speed: def.speed, boss: bossId });
+    // Boss 另有 30% 帶碎片
+    spawnEnemy(w, side, ctx, { hp, speed: def.speed, boss: bossId, carries: w.weaponUnlocked && nextFloat(w.rng, 'combat') < v.bossFragmentChance });
     ctx.events.push({ type: 'bossSpawn', side, bossId });
   }
 }

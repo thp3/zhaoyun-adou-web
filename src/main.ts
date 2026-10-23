@@ -3,12 +3,13 @@ import { systemClock } from './domain/time/calendar';
 import { openGameDb } from './storage/db';
 import { BattleScreen } from './ui/battleScreen';
 import { renderInterrupted, renderOpponent, renderResult, renderSettling } from './ui/flowScreens';
+import { newPanelState, renderPanel } from './ui/metaScreens';
 import { renderLoading, renderLobby, renderRecovery, staminaHint, type UiState } from './ui/screens';
 import './ui/styles.css';
 
 const root = document.getElementById('app')!;
 const app = new AppController({ clock: systemClock, openDb: () => openGameDb() });
-const ui: UiState = { settingsOpen: false, confirmReset: false };
+const ui: UiState = { settingsOpen: false, confirmReset: false, panels: newPanelState() };
 let latest: AppView = app.view;
 let battleUi: BattleScreen | null = null;
 // 開發模式除錯入口（正式建置會移除）
@@ -31,7 +32,9 @@ function render(): void {
     battleUi = null;
   }
   const screen =
-    v.state === 'LOBBY' && v.profile && v.data
+    v.state === 'LOBBY' && v.profile && v.data && ui.panels.panel
+      ? renderPanel({ view: v, app, ps: ui.panels, rerender: render })
+      : v.state === 'LOBBY' && v.profile && v.data
       ? renderLobby(v, ui, app, render)
       : v.state === 'RECOVERY' && v.recovery
         ? renderRecovery(v, ui, app, render)

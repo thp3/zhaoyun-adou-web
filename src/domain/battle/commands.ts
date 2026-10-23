@@ -68,7 +68,7 @@ function recruit(w: World, side: Side, ctx: StepContext): CommandResult {
     if (id !== null) delete w.actors[id];
     camp.slots[i] = null;
   });
-  const drawn = Array.from({ length: rules.slots }, () => drawToken(w, side, ctx));
+  const drawn = side === 0 && w.tutorial && w.tutorial.recruits < 2 ? tutorialDraw(w, ctx) : Array.from({ length: rules.slots }, () => drawToken(w, side, ctx));
   // AI 難度 ≥2：鏟子排到前面（原版 Ln.aG）
   if (side === 1 && w.difficulty >= 2) drawn.sort((a, b) => Number(b === 'shovel') - Number(a === 'shovel'));
   for (let i = 0; i < rules.slots; i++) {
@@ -87,6 +87,24 @@ function recruit(w: World, side: Side, ctx: StepContext): CommandResult {
   }
   ctx.events.push({ type: 'recruited', side });
   return ok;
+}
+
+/**
+ * 首局教程的征兵（原版 Cn）：第一次隨機但避開黃／忠（最多重抽 30 次，仍命中回退刀）；
+ * 第二次依欄位固定為 刀／弓／黃／忠／鏟（不從牌庫扣）。
+ */
+function tutorialDraw(w: World, ctx: StepContext): string[] {
+  const t = w.tutorial!;
+  const tut = ctx.data.deck.tutorial;
+  t.recruits += 1;
+  if (t.recruits === 2) return [...tut.secondRefreshFixed];
+  return Array.from({ length: ctx.data.deck.recruit.slots }, () => {
+    for (let i = 0; i < tut.firstRefreshMaxRetry; i++) {
+      const token = drawToken(w, 0, ctx);
+      if (!tut.firstRefreshAvoid.includes(token)) return token;
+    }
+    return tut.firstRefreshFallback;
+  });
 }
 
 // ---------- 移動／交換／合成／開墾 ----------

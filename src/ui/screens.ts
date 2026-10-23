@@ -7,21 +7,24 @@ import { msUntilNextStamina } from '../domain/profile/stamina';
 import { dayKeyOf } from '../domain/time/calendar';
 import type { GameData } from '../data';
 import { downloadJson, formatClock, formatTime, h } from './dom';
+import { rankRewardAvailable } from '../domain/profile/shop';
+import type { Panel, PanelState } from './metaScreens';
 
 export interface UiState {
   settingsOpen: boolean;
   confirmReset: boolean;
+  panels: PanelState;
 }
 
 export function renderLoading(): HTMLElement {
   return h('main', { class: 'screen center' }, h('h1', { class: 'title' }, '趙雲與阿斗'), h('p', { class: 'muted' }, '載入中…'));
 }
 
-const FEATURES: { label: string; milestone: string }[] = [
-  { label: '武器', milestone: 'M5' },
-  { label: '商店', milestone: 'M5' },
-  { label: '段位', milestone: 'M5' },
-  { label: '圖鑑', milestone: 'M5' },
+const FEATURES: { label: string; panel: Panel }[] = [
+  { label: '武器', panel: 'weapons' },
+  { label: '商店', panel: 'shop' },
+  { label: '段位', panel: 'rank' },
+  { label: '圖鑑', panel: 'codex' },
 ];
 
 export function renderLobby(view: AppView, ui: UiState, app: AppController, rerender: () => void): HTMLElement {
@@ -69,7 +72,21 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
       'nav',
       { class: 'features' },
       ...FEATURES.map((f) =>
-        h('button', { class: 'tile', disabled: true, title: `${f.milestone} 開放` }, f.label, h('small', null, '即將推出')),
+        h(
+          'button',
+          {
+            class: 'tile',
+            onclick: () => {
+              ui.panels.panel = f.panel;
+              ui.panels.message = null;
+              if (f.panel === 'shop') ui.panels.shop = null;
+              rerender();
+            },
+          },
+          f.label,
+          f.panel === 'weapons' && p.newWeaponIds.length > 0 ? h('small', null, '有新武器') : null,
+          f.panel === 'rank' && rankRewardAvailable(p, today) ? h('small', null, '可領獎勵') : null,
+        ),
       ),
       h(
         'button',

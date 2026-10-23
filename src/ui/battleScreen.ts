@@ -17,6 +17,14 @@ import {
 } from '../render/battleCanvas';
 import { h } from './dom';
 
+/** 首局教程提示（依步驟） */
+const TUTORIAL_TIPS: Record<number, string> = {
+  0: '教程：按「征兵」召集士兵。',
+  1: '把下方征兵欄的兵拖到己方陣地（亮色格子）；同字同級疊上去可以合成升級。',
+  2: '敵人要來了！守住右下角的阿斗。再征兵一次看看。',
+  3: '把「黃」和「忠」左右相鄰排在同一列（姓在左），就會合成武將黃忠。鏟子可以拖到「荒」地開墾。',
+};
+
 const EFFECT_TTL = 1000;
 const MAX_EFFECTS = 160;
 
@@ -33,6 +41,7 @@ export class BattleScreen {
   private readonly toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite' });
   private readonly overlay = h('div', { class: 'backdrop', hidden: true });
   private readonly itemBar = h('div', { class: 'item-bar', 'aria-label': '我方道具' });
+  private readonly tip = h('div', { class: 'tutorial-tip', role: 'status', hidden: true });
   private readonly aiItems = h('div', { class: 'item-ai muted' });
   private itemSig = '';
   /** 已選取、等待點目標的道具欄位 */
@@ -69,6 +78,7 @@ export class BattleScreen {
           h('span', { class: 'hud-actions' }, this.hud.recruit, h('button', { onclick: () => app.pause('USER') }, '暫停')),
         ),
       ),
+      this.tip,
       h('div', { class: 'canvas-wrap' }, this.canvas, this.toast),
       this.itemBar,
       this.aiItems,
@@ -154,6 +164,7 @@ export class BattleScreen {
       if (ev.type === 'rejected' && ev.side === 0) this.showToast(ev.reason);
       else if (ev.type === 'waveStart') this.showToast(`第 ${ev.wave} 波`);
       else if (ev.type === 'adouHit' && ev.side === 0) this.showToast(`阿斗受傷！剩 ${Math.max(0, ev.lives)} 命`);
+      else if (ev.type === 'drop') this.showToast(`獲得碎片：${this.view.data!.weapons.weapons.find((x) => x.id === ev.weaponId)?.name ?? ''}`);
       else if (ev.type === 'bossSpawn' && ev.side === 0) this.showToast(`Boss 出現：${this.view.data!.waves.bosses[ev.bossId]!.name}`);
       else if (ev.type === 'damage') {
         // 只顯示自己防區的傷害數字
@@ -214,6 +225,10 @@ export class BattleScreen {
 
   private updateHud(): void {
     this.updateItems();
+    const t = this.session.world.tutorial;
+    const tipText = t ? TUTORIAL_TIPS[t.step] : '';
+    this.tip.hidden = !tipText;
+    setText(this.tip, tipText ?? '');
     const w = this.session.world;
     const data = this.view.data!;
     const s = w.wave;
