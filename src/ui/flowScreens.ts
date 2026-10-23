@@ -7,6 +7,9 @@ export function renderOpponent(view: AppView, app: AppController): HTMLElement {
   const b = view.battle!;
   const data = view.data!;
   const map = data.maps.maps[b.setup.mapId]!;
+  const ai = starToRank(b.setup.aiStar);
+  const aiRank = data.ranks.ranks[ai.rankId]!;
+  const aiRankText = ai.rankId >= 50 ? `${aiRank.name} ${ai.level} 星` : `${aiRank.name} 第 ${ai.level} 星`;
   return h(
     'main',
     { class: 'screen center' },
@@ -15,9 +18,15 @@ export function renderOpponent(view: AppView, app: AppController): HTMLElement {
       'section',
       { class: 'rank-card' },
       h('div', { class: 'seal' }, map.name.slice(0, 2)),
-      h('div', null, h('div', { class: 'rank-name' }, `戰場：${map.name}`), h('div', { class: 'muted' }, '對手：本機 AI')),
+      h('div', null, h('div', { class: 'rank-name' }, `戰場：${map.name}`), h('div', { class: 'muted' }, b.setup.aiEnabled ? `對手：本機 AI · ${aiRankText}` : '對手：本機 AI（未出手）')),
     ),
-    h('p', { class: 'muted' }, '本版本 AI 尚未出手（M3 加入）：撐過 20 波即勝利。對手由本機產生，不是真人配對。'),
+    h(
+      'p',
+      { class: 'muted' },
+      b.setup.aiEnabled
+        ? '守住己方阿斗：撐過 20 波，或讓對方阿斗先失守即勝利。對手由本機產生，不是真人配對。'
+        : '這場對局的 AI 不出手：撐過 20 波即勝利。',
+    ),
     h('p', { class: 'muted' }, `已扣除 ${b.staminaCost} 體力。開始前取消會退還，開始後不退。`),
     h(
       'div',

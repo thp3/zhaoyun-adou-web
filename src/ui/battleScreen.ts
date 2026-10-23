@@ -171,7 +171,8 @@ export class BattleScreen {
             ? `第 ${s.wave}/${data.waves.waveCount} 波 · 休息 ${secs(data.waves.intermissionMs)} 秒`
             : '最後一波結束';
     setText(this.hud.wave, waveText);
-    setText(this.hud.lives, `阿斗 ${'♥'.repeat(Math.max(0, w.camps[0].lives))}${w.camps[0].lives <= 0 ? '—' : ''}`);
+    const hearts = (n: number) => (n > 0 ? '♥'.repeat(Math.min(n, 10)) + (n > 10 ? `+${n - 10}` : '') : '—');
+    setText(this.hud.lives, w.aiEnabled ? `我 ${hearts(w.camps[0].lives)}　敵 ${hearts(w.camps[1].lives)}` : `阿斗 ${hearts(w.camps[0].lives)}`);
     setText(this.hud.gold, String(Math.floor(w.camps[0].gold)));
     const cost = w.camps[0].recruitCost;
     setText(this.hud.recruit, `征兵 ${cost}`);
@@ -244,7 +245,7 @@ export class BattleScreen {
       const loc = this.locAt(p.x, p.y);
       if (!loc) this.drag.hover = null;
       else {
-        const ok = previewMove(this.session.world, 0, this.drag.actorId, loc).ok;
+        const ok = previewMove(this.session.world, 0, this.drag.actorId, loc, this.view.data!).ok;
         this.drag.hover = { ...loc, ok } as DragState['hover'];
       }
     });

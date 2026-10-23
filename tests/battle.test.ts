@@ -21,7 +21,7 @@ function run(w: World, n: number, cmds: BattleCommand[] = []): void {
 
 function place(w: World, token: string, x: number, y: number, level = 1, side: 0 | 1 = 0): Actor {
   const id = w.nextId++;
-  const a: Actor = { id, side, token, kind: token === 'shovel' ? 'shovel' : ['blade', 'bow', 'spear', 'cavalry'].includes(token) ? 'soldier' : 'name', level, loc: { c: 'board', x, y }, cooldown: 0 };
+  const a: Actor = { id, side, token, kind: token === 'shovel' ? 'shovel' : ['blade', 'bow', 'spear', 'cavalry'].includes(token) ? 'soldier' : 'name', level, loc: { c: 'board', x, y }, cooldown: 0, generalId: null, exp: 0 };
   w.actors[id] = a;
   w.board[x]![y] = id;
   return a;

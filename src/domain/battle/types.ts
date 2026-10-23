@@ -26,6 +26,23 @@ export interface Actor {
   loc: Loc;
   /** 距離可以再次攻擊的 tick 數 */
   cooldown: number;
+  /** 名字字：所屬已成形武將；未成形為 null */
+  generalId: number | null;
+  /** 名字字保留的武將經驗（拆開後再合仍沿用較大者） */
+  exp: number;
+}
+
+/** 已成形的武將：由同一列相鄰、依序排列的名字字組成 */
+export interface General {
+  id: number;
+  side: Side;
+  /** data.generals 的索引 */
+  type: number;
+  /** 由左到右的組成字 actor id */
+  partIds: number[];
+  level: number;
+  exp: number;
+  cooldown: number;
 }
 
 export interface Enemy {
@@ -40,12 +57,17 @@ export interface Enemy {
   /** 下一個要前往的路點索引 */
   pathIdx: number;
   boss: boolean;
+  /** 曾造成傷害的武將 id（助攻經驗用） */
+  hitBy: number[];
 }
+
+/** 攻擊來源：普通兵 actor 或武將 */
+export type AttackSource = { kind: 'actor' | 'general'; id: number };
 
 export interface Projectile {
   id: number;
   side: Side;
-  sourceId: number;
+  src: AttackSource;
   targetId: number;
   x: number;
   y: number;
@@ -56,10 +78,10 @@ export interface Projectile {
 /** 延遲事件：只存資料，載入時由白名單 handler 依 kind 處理 */
 export type ScheduledAction =
   | { kind: 'enterSlot'; actorId: number }
-  | { kind: 'meleeHit'; actorId: number; targetId: number; damage: number }
-  | { kind: 'fireArrow'; actorId: number; targetId: number; damage: number }
-  | { kind: 'spearThrust'; actorId: number; targetId: number; damage: number }
-  | { kind: 'cavalrySweep'; actorId: number; damage: number };
+  | { kind: 'meleeHit'; src: AttackSource; targetId: number; damage: number }
+  | { kind: 'fireArrow'; src: AttackSource; targetId: number; damage: number }
+  | { kind: 'spearThrust'; src: AttackSource; targetId: number; damage: number }
+  | { kind: 'cavalrySweep'; src: AttackSource; damage: number };
 
 export interface Scheduled {
   due: number;
@@ -113,6 +135,7 @@ export interface World {
   remain: [number[], number[]];
   board: (number | null)[][];
   actors: Record<number, Actor>;
+  generals: Record<number, General>;
   enemies: Record<number, Enemy>;
   projectiles: Record<number, Projectile>;
   scheduled: Scheduled[];
@@ -127,7 +150,31 @@ export interface World {
   totalRounds: number;
   addHp: number;
   aiEnabled: boolean;
+  /** AI 難度 0–3 */
+  difficulty: number;
+  /** AI 單位傷害倍率（原版 nu.mh，教學 0.7） */
+  aiDamageMultiplier: number;
+  ai: AiState;
   result: BattleResult | null;
+}
+
+/** AI 五階段狀態；全部可序列化，恢復時不重設成 stage 1 */
+export interface AiState {
+  stage: 1 | 2 | 3 | 4 | 5;
+  /** 距離下次決策累積的 tick */
+  timer: number;
+  /** stage 2：處理到第幾個刷新欄（原版 tX） */
+  slotCursor: number;
+  /** stage 3：盤面掃描游標 [x, y]（原版 pX） */
+  scanCursor: [number, number];
+  /** stage 5：佈局游標 [x, y]（原版 xX） */
+  moveCursor: [number, number];
+  /** stage 3 收集的名字字 id（原版 op） */
+  names: number[];
+  /** stage 5 佈局計畫：plan[x][y] = actor id（AI 半場，原版 vX） */
+  plan: (number | null)[][];
+  /** 每局一次的免費擴地已用（原版 UX） */
+  usedFreeExpand: boolean;
 }
 
 export interface Pt {
@@ -139,11 +186,14 @@ export interface Pt {
 export type BattleEvent =
   | { type: 'rejected'; side: Side; reason: string }
   | { type: 'recruited'; side: Side }
-  | { type: 'attack'; actorId: number; kind: 'melee' | 'arrow' | 'spear' | 'sweep'; x: number; y: number; tx: number; ty: number; r?: number }
+  | { type: 'attack'; src: AttackSource; kind: 'melee' | 'arrow' | 'spear' | 'sweep'; x: number; y: number; tx: number; ty: number; r?: number }
   | { type: 'damage'; enemyId: number; x: number; y: number; amount: number }
   | { type: 'enemyDied'; enemyId: number; side: Side; x: number; y: number; reward: number }
   | { type: 'adouHit'; side: Side; lives: number }
   | { type: 'merged'; actorId: number; level: number }
+  | { type: 'generalFormed'; generalId: number; side: Side }
+  | { type: 'generalLevel'; generalId: number; level: number }
+  | { type: 'recycled'; actorId: number; side: Side }
   | { type: 'expanded'; x: number; y: number }
   | { type: 'waveStart'; wave: number }
   | { type: 'ended'; result: BattleResult };

@@ -1,6 +1,7 @@
 // 普通敵人：血量公式（原版 It.Ty）、出生、沿路移動、走到阿斗。
 import { allocId } from './create';
-import { TICK_MS, type Enemy, type Side, type StepContext, type World } from './types';
+import { gainExp } from './generals';
+import { TICK_MS, type AttackSource, type Enemy, type Side, type StepContext, type World } from './types';
 
 /** 普通敵人血量 */
 export function enemyHp(w: World, wave: number, ctx: StepContext): number {
@@ -28,6 +29,7 @@ export function spawnEnemy(w: World, side: Side, ctx: StepContext): Enemy {
     y: start.y,
     pathIdx: 1,
     boss: false,
+    hitBy: [],
   };
   w.enemies[e.id] = e;
   return e;
@@ -72,9 +74,10 @@ function reachAdou(w: World, e: Enemy, ctx: StepContext): void {
   ctx.events.push({ type: 'adouHit', side: e.side, lives: camp.lives });
 }
 
-export function damageEnemy(w: World, e: Enemy, amount: number, ctx: StepContext): void {
+export function damageEnemy(w: World, e: Enemy, amount: number, src: AttackSource | null, ctx: StepContext): void {
   if (e.hp <= 0) return;
   e.hp = Math.max(0, e.hp - amount);
+  if (src?.kind === 'general' && !e.hitBy.includes(src.id)) e.hitBy.push(src.id);
   ctx.events.push({ type: 'damage', enemyId: e.id, x: e.x, y: e.y, amount });
   if (e.hp > 0) return;
   // 擊殺獎勵給該敵人所屬的防守方：普通 +1、Boss +10
@@ -83,5 +86,19 @@ export function damageEnemy(w: World, e: Enemy, amount: number, ctx: StepContext
   camp.gold += reward;
   camp.kills += 1;
   delete w.enemies[e.id];
+  creditKill(w, e, src, ctx);
   ctx.events.push({ type: 'enemyDied', enemyId: e.id, side: e.side, x: e.x, y: e.y, reward });
+}
+
+/**
+ * 擊殺經驗（原版 Kh.JB）：武將擊殺者 +1；其餘參與過的武將合分 0.5（武將擊殺）或 0.2（非武將擊殺），平均分攤。
+ */
+function creditKill(w: World, e: Enemy, src: AttackSource | null, ctx: StepContext): void {
+  const credit = ctx.data.generals.killCredit;
+  const killer = src?.kind === 'general' ? w.generals[src.id] : undefined;
+  if (killer) gainExp(w, killer, credit.killerExp, ctx);
+  const assists = e.hitBy.filter((id) => id !== killer?.id && w.generals[id]);
+  if (assists.length === 0) return;
+  const share = (killer ? credit.assistPoolByGeneral : credit.assistPoolByOther) / assists.length;
+  for (const id of assists) gainExp(w, w.generals[id]!, share, ctx);
 }

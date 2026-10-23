@@ -1,36 +1,83 @@
-// 普通兵攻擊。四種兵的出手延遲依原版動畫時序（刀 500ms 命中、弓 650ms 放箭、槍 480ms 刺出、騎 150ms 掃掠），
-// 但改由模擬排程決定，不再依動畫回呼。延遲與彈速屬待校正數值。
+// 攻擊：普通兵與武將共用同一套延遲出手與命中。四種出手延遲依原版動畫時序（刀 500ms 命中、弓 650ms 放箭、
+// 槍 480ms 刺出、騎／劍 150ms 掃掠），改由模擬排程決定；延遲與彈速屬待校正數值。
+// 武將依武器類型出手（弓→箭、槍→刺、刀→砍、劍→掃）；具名技能與武器特效於 M4 加入。
 import { allocId, schedule } from './create';
 import { damageEnemy, remainingDistance } from './enemies';
+import { generalCenter, generalStats } from './generals';
 import {
   CELL,
   TICK_MS,
   ticks,
   type Actor,
+  type AttackSource,
   type Enemy,
   type Pt,
   type ScheduledAction,
+  type Side,
   type StepContext,
   type World,
 } from './types';
 
 const ARROW_SPEED = 480; // px/s，待校正
 const SPEAR_WIDTH = 30;
-const DELAY_MS = { blade: 500, bow: 650, spear: 480, cavalry: 150 } as const;
+type Style = 'melee' | 'arrow' | 'spear' | 'sweep';
+const DELAY_MS: Record<Style, number> = { melee: 500, arrow: 650, spear: 480, sweep: 150 };
+const SOLDIER_STYLE: Record<string, Style> = { blade: 'melee', bow: 'arrow', spear: 'spear', cavalry: 'sweep' };
+/** 武器類型 0 弓、1 槍、2 刀、3 劍 */
+const WEAPON_STYLE: Style[] = ['arrow', 'spear', 'melee', 'sweep'];
 
 export function actorCenter(a: Actor): Pt | null {
   if (a.loc.c !== 'board') return null;
   return { x: a.loc.x * CELL + CELL / 2, y: a.loc.y * CELL + CELL / 2 };
 }
 
-function soldierStats(a: Actor, ctx: StepContext) {
+interface Attacker {
+  src: AttackSource;
+  side: Side;
+  at: Pt;
+  damage: number;
+  range: number;
+  intervalTicks: number;
+  targetRule: string;
+  style: Style;
+}
+
+function soldierAttacker(w: World, a: Actor, ctx: StepContext): Attacker | null {
+  const at = actorCenter(a);
+  if (!at) return null;
   const s = ctx.data.units.soldiers.find((x) => x.id === a.token)!;
   const mult = ctx.data.units.soldierLevelMultiplier[a.level - 1] ?? 1;
+  const aiMult = a.side === 1 ? w.aiDamageMultiplier : 1;
   return {
-    damage: s.damage * mult,
+    src: { kind: 'actor', id: a.id },
+    side: a.side,
+    at,
+    damage: s.damage * mult * aiMult,
     range: s.rangeCells * CELL,
     intervalTicks: ticks((s.intervalSec * 1000) / mult),
     targetRule: s.targetRule,
+    style: SOLDIER_STYLE[a.token]!,
+  };
+}
+
+function attackerOf(w: World, src: AttackSource, ctx: StepContext): Attacker | null {
+  if (src.kind === 'actor') {
+    const a = w.actors[src.id];
+    return a && a.kind === 'soldier' ? soldierAttacker(w, a, ctx) : null;
+  }
+  const g = w.generals[src.id];
+  const at = g ? generalCenter(w, g) : null;
+  if (!g || !at) return null;
+  const st = generalStats(w, g, ctx.data);
+  return {
+    src,
+    side: g.side,
+    at,
+    damage: st.damage,
+    range: st.range,
+    intervalTicks: ticks(st.intervalMs),
+    targetRule: st.targetRule,
+    style: WEAPON_STYLE[st.def.weaponType]!,
   };
 }
 
@@ -56,81 +103,85 @@ function pickTarget(w: World, at: Pt, cands: Enemy[], rule: string): Enemy | nul
   return best;
 }
 
-/** 依 id 順序讓每個在地圖上的普通兵嘗試出手 */
-export function updateSoldiers(w: World, ctx: StepContext): void {
+function tryAttack(w: World, atk: Attacker, setCooldown: (t: number) => void, ctx: StepContext): void {
+  const target = pickTarget(w, atk.at, enemiesInRange(w, atk.side, atk.at, atk.range), atk.targetRule);
+  if (!target) return;
+  setCooldown(atk.intervalTicks);
+  const base = { src: atk.src, damage: atk.damage };
+  const action: ScheduledAction =
+    atk.style === 'melee'
+      ? { kind: 'meleeHit', targetId: target.id, ...base }
+      : atk.style === 'arrow'
+        ? { kind: 'fireArrow', targetId: target.id, ...base }
+        : atk.style === 'spear'
+          ? { kind: 'spearThrust', targetId: target.id, ...base }
+          : { kind: 'cavalrySweep', ...base };
+  schedule(w, ticks(DELAY_MS[atk.style]), action);
+}
+
+/** 依 id 順序：普通兵，再武將；組成字本身不出手 */
+export function updateAttackers(w: World, ctx: StepContext): void {
   for (const a of Object.values(w.actors)) {
     if (a.kind !== 'soldier') continue;
     if (a.cooldown > 0) a.cooldown -= 1;
-    const at = actorCenter(a);
-    if (!at || a.cooldown > 0) continue;
-    const st = soldierStats(a, ctx);
-    const target = pickTarget(w, at, enemiesInRange(w, a.side, at, st.range), st.targetRule);
-    if (!target) continue;
-    a.cooldown = st.intervalTicks;
-    const token = a.token as keyof typeof DELAY_MS;
-    const action: ScheduledAction =
-      token === 'blade'
-        ? { kind: 'meleeHit', actorId: a.id, targetId: target.id, damage: st.damage }
-        : token === 'bow'
-          ? { kind: 'fireArrow', actorId: a.id, targetId: target.id, damage: st.damage }
-          : token === 'spear'
-            ? { kind: 'spearThrust', actorId: a.id, targetId: target.id, damage: st.damage }
-            : { kind: 'cavalrySweep', actorId: a.id, damage: st.damage };
-    schedule(w, ticks(DELAY_MS[token]), action);
+    if (a.cooldown > 0) continue;
+    const atk = soldierAttacker(w, a, ctx);
+    if (atk) tryAttack(w, atk, (t) => (a.cooldown = t), ctx);
+  }
+  for (const g of Object.values(w.generals)) {
+    if (g.cooldown > 0) g.cooldown -= 1;
+    if (g.cooldown > 0) continue;
+    const atk = attackerOf(w, { kind: 'general', id: g.id }, ctx);
+    if (atk) tryAttack(w, atk, (t) => (g.cooldown = t), ctx);
   }
 }
 
-/** 處理到期的攻擊類延遲事件；回傳 false 表示不是攻擊事件 */
-export function resolveAttack(w: World, action: ScheduledAction, ctx: StepContext): boolean {
-  if (action.kind === 'enterSlot') return false;
-  const a = w.actors[action.actorId];
-  const at = a ? actorCenter(a) : null;
-  // 出手者已被移走或拖離地圖：這次攻擊取消
-  if (!a || !at) return true;
-  const range = soldierStats(a, ctx).range;
+/** 處理到期的攻擊類延遲事件 */
+export function resolveAttack(w: World, action: Exclude<ScheduledAction, { kind: 'enterSlot' }>, ctx: StepContext): void {
+  // 出手者已被移走、拆開或拖離地圖：這次攻擊取消
+  const atk = attackerOf(w, action.src, ctx);
+  if (!atk) return;
+  const { at, range, side, src } = atk;
   switch (action.kind) {
     case 'meleeHit': {
       const t = w.enemies[action.targetId];
-      if (!t) return true;
-      ctx.events.push({ type: 'attack', actorId: a.id, kind: 'melee', x: at.x, y: at.y, tx: t.x, ty: t.y });
-      damageEnemy(w, t, action.damage, ctx);
-      return true;
+      if (!t) return;
+      ctx.events.push({ type: 'attack', src, kind: 'melee', x: at.x, y: at.y, tx: t.x, ty: t.y });
+      damageEnemy(w, t, action.damage, src, ctx);
+      return;
     }
     case 'fireArrow': {
       // 發射時目標失效可重選
       let t: Enemy | null | undefined = w.enemies[action.targetId];
-      if (!t) t = pickTarget(w, at, enemiesInRange(w, a.side, at, range), 'closest_end');
-      if (!t) return true;
+      if (!t) t = pickTarget(w, at, enemiesInRange(w, side, at, range), 'closest_end');
+      if (!t) return;
       const id = allocId(w);
-      w.projectiles[id] = { id, side: a.side, sourceId: a.id, targetId: t.id, x: at.x, y: at.y, speed: ARROW_SPEED, damage: action.damage };
-      return true;
+      w.projectiles[id] = { id, side, src, targetId: t.id, x: at.x, y: at.y, speed: ARROW_SPEED, damage: action.damage };
+      return;
     }
     case 'spearThrust': {
       const t = w.enemies[action.targetId];
-      if (!t) return true;
+      if (!t) return;
       const len = Math.hypot(t.x - at.x, t.y - at.y) || 1;
       const dx = (t.x - at.x) / len;
       const dy = (t.y - at.y) / len;
-      const tx = at.x + dx * range;
-      const ty = at.y + dy * range;
-      ctx.events.push({ type: 'attack', actorId: a.id, kind: 'spear', x: at.x, y: at.y, tx, ty });
+      ctx.events.push({ type: 'attack', src, kind: 'spear', x: at.x, y: at.y, tx: at.x + dx * range, ty: at.y + dy * range });
       for (const e of Object.values(w.enemies)) {
-        if (e.side !== a.side) continue;
+        if (e.side !== side) continue;
         const px = e.x - at.x;
         const py = e.y - at.y;
         const along = px * dx + py * dy;
-        const across = Math.abs(px * dy - py * dx);
-        if (along >= 0 && along <= range && across <= SPEAR_WIDTH) damageEnemy(w, e, action.damage, ctx);
+        if (along >= 0 && along <= range && Math.abs(px * dy - py * dx) <= SPEAR_WIDTH) damageEnemy(w, e, action.damage, src, ctx);
       }
-      return true;
+      return;
     }
     case 'cavalrySweep': {
-      ctx.events.push({ type: 'attack', actorId: a.id, kind: 'sweep', x: at.x, y: at.y, tx: at.x, ty: at.y, r: range });
+      ctx.events.push({ type: 'attack', src, kind: 'sweep', x: at.x, y: at.y, tx: at.x, ty: at.y, r: range });
       // 半射程與全射程兩道掃掠各造成一半傷害，近處敵人可兩道都吃到
       for (const r of [range / 2, range]) {
-        for (const e of enemiesInRange(w, a.side, at, r)) damageEnemy(w, e, action.damage / 2, ctx);
+        for (const e of enemiesInRange(w, side, at, r)) damageEnemy(w, e, action.damage / 2, src, ctx);
       }
-      return true;
+      return;
     }
   }
 }
@@ -146,8 +197,8 @@ export function updateProjectiles(w: World, ctx: StepContext): void {
     const d = Math.hypot(t.x - p.x, t.y - p.y);
     if (d <= step) {
       delete w.projectiles[p.id];
-      ctx.events.push({ type: 'attack', actorId: p.sourceId, kind: 'arrow', x: p.x, y: p.y, tx: t.x, ty: t.y });
-      damageEnemy(w, t, p.damage, ctx);
+      ctx.events.push({ type: 'attack', src: p.src, kind: 'arrow', x: p.x, y: p.y, tx: t.x, ty: t.y });
+      damageEnemy(w, t, p.damage, p.src, ctx);
     } else {
       p.x += ((t.x - p.x) / d) * step;
       p.y += ((t.y - p.y) / d) * step;

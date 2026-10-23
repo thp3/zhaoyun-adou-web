@@ -122,6 +122,8 @@ export const GeneralsFileSchema = z.object({
       }),
     )
     .length(12),
+  levelDamageMultiplier: z.array(z.number().positive()).length(5),
+  levelSpeedMultiplier: z.array(z.number().positive()).length(5),
   expHighTier: z.array(nonNegInt).length(5),
   expNormalTier: z.array(nonNegInt).length(3),
   killCredit: z.object({

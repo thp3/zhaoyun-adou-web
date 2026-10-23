@@ -1,6 +1,6 @@
 // 戰場繪製：純文字與幾何形狀，不載入任何圖片。只讀 World，不改狀態。
 import type { GameData } from '../data';
-import { CELL, type Actor, type BattleEvent, type World } from '../domain/battle/types';
+import { CELL, type Actor, type BattleEvent, type General, type World } from '../domain/battle/types';
 
 export const BOARD_W = 640;
 export const BOARD_H = 800;
@@ -97,6 +97,7 @@ export function drawBattle(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
     if (o.drag?.actorId === a.id) continue;
     if (a.loc.c === 'board') drawActor(ctx, a, a.loc.x * CELL + 6, a.loc.y * CELL + 6, CELL - 12, o, 1);
   }
+  for (const g of Object.values(w.generals)) drawGeneral(ctx, w, g, o);
   for (const e of Object.values(w.enemies)) drawEnemy(ctx, e.x, e.y, e.hp / e.maxHp, e.side === 0, o);
   ctx.strokeStyle = P.ink;
   ctx.lineWidth = 3;
@@ -205,6 +206,38 @@ function drawActor(ctx: CanvasRenderingContext2D, a: Actor, x: number, y: number
     }
   }
   ctx.globalAlpha = 1;
+}
+
+/** 已成形武將：在組成字外框一個跨格的印框，標名字與等級 */
+function drawGeneral(ctx: CanvasRenderingContext2D, w: World, g: General, o: DrawOptions): void {
+  const first = w.actors[g.partIds[0]!];
+  if (!first || first.loc.c !== 'board') return;
+  const P = o.palette;
+  const def = o.data.generals.generals[g.type]!;
+  const x = first.loc.x * CELL + 3;
+  const y = first.loc.y * CELL + 3;
+  const wpx = g.partIds.length * CELL - 6;
+  ctx.strokeStyle = g.side === 0 ? P.gold : P.ink2;
+  ctx.lineWidth = 4;
+  roundRect(ctx, x, y, wpx, CELL - 6, 12);
+  ctx.stroke();
+  // 等級與經驗條
+  const table = def.highTier ? o.data.generals.expHighTier : o.data.generals.expNormalTier;
+  const cur = table[g.level - 1] ?? 0;
+  const next = table[g.level];
+  const ratio = next === undefined ? 1 : Math.min(1, (g.exp - cur) / (next - cur));
+  ctx.fillStyle = P.paper;
+  ctx.fillRect(x + 8, y + CELL - 14, wpx - 16, 4);
+  ctx.fillStyle = P.gold;
+  ctx.fillRect(x + 8, y + CELL - 14, (wpx - 16) * ratio, 4);
+  ctx.fillStyle = g.side === 0 ? P.gold : P.ink2;
+  roundRect(ctx, x + wpx - 30, y - 2, 32, 18, 6);
+  ctx.fill();
+  ctx.fillStyle = P.unitText;
+  ctx.font = 'bold 12px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`Lv${g.level}`, x + wpx - 14, y + 7);
 }
 
 function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, hpRatio: number, own: boolean, o: DrawOptions): void {

@@ -2,7 +2,7 @@
 import type { GameData } from '../../data';
 import { lanePath, type Cell } from './path';
 import { createRng, pickWeighted } from './rng';
-import { CELL, type CampState, type Pt, type ScheduledAction, type World } from './types';
+import { CELL, type AiState, type CampState, type Pt, type ScheduledAction, type World } from './types';
 
 export interface CreateWorldParams {
   data: GameData;
@@ -14,8 +14,25 @@ export interface CreateWorldParams {
   roundOfDay: number;
   /** 玩家段位的 addHp（第 10 波後敵人血量加成） */
   addHp: number;
-  /** M2：AI 尚未出手；關閉時 AI 阿斗不扣命（原版 dh=false） */
+  /** 關閉時 AI 不出手、AI 阿斗不扣命（原版 dh=false） */
   aiEnabled: boolean;
+  /** AI 難度 0–3 */
+  difficulty?: number;
+  /** AI 傷害倍率，預設 1 */
+  aiDamageMultiplier?: number;
+}
+
+export function initialAiState(width: number, height: number): AiState {
+  return {
+    stage: 1,
+    timer: 0,
+    slotCursor: 0,
+    scanCursor: [0, 0],
+    moveCursor: [0, 0],
+    names: [],
+    plan: Array.from({ length: width }, () => new Array<number | null>(height / 2).fill(null)),
+    usedFreeExpand: false,
+  };
 }
 
 const center = (c: Cell): Pt => ({ x: c.x * CELL + CELL / 2, y: c.y * CELL + CELL / 2 });
@@ -54,6 +71,11 @@ export function createWorld(p: CreateWorldParams): World {
     kills: 0,
   });
 
+  const difficulty = Math.min(3, Math.max(0, p.difficulty ?? 0));
+  const camps: [CampState, CampState] = [camp(data.economy.battleStart.playerGold), camp(p.aiEnabled ? data.economy.battleStart.aiGold : 0)];
+  // 難度 3 的 AI 牌庫另加鏟
+  for (let i = 0; i < (p.aiEnabled ? data.ai.extraShovelsByDifficulty[difficulty]! : 0); i++) camps[1].deck.push('shovel');
+
   return {
     schema: 1,
     tick: 0,
@@ -64,18 +86,22 @@ export function createWorld(p: CreateWorldParams): World {
     remain: [remainingLengths(paths[0]), remainingLengths(paths[1])],
     board: map.kind.map((col) => col.map(() => null)),
     actors: {},
+    generals: {},
     enemies: {},
     projectiles: {},
     scheduled: [],
     seq: 0,
     nextId: 1,
     rng,
-    camps: [camp(data.economy.battleStart.playerGold), camp(data.economy.battleStart.aiGold)],
+    camps,
     wave: { phase: 'ready', wave: 0, timer: 0, spawned: 0 },
     hpStrategy: pickWeighted(rng, 'combat', data.waves.hpStrategyWeights),
     totalRounds: p.totalRounds,
     addHp: p.addHp,
     aiEnabled: p.aiEnabled,
+    difficulty,
+    aiDamageMultiplier: p.aiDamageMultiplier ?? 1,
+    ai: initialAiState(map.width, map.height),
     result: null,
   };
 }

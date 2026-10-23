@@ -1,5 +1,6 @@
 // 單一 tick 的固定更新次序。render 不是邏輯 tick；同一輸入序列必得同一結果。
-import { updateProjectiles, updateSoldiers, resolveAttack } from './combat';
+import { resolveAttack, updateAttackers, updateProjectiles } from './combat';
+import { aiWaveBonus, updateAi } from './ai/controller';
 import { applyCommand } from './commands';
 import { moveEnemies, spawnEnemy } from './enemies';
 import { ticks, type BattleCommand, type BattleEvent, type BattleResult, type BattleRules, type StepContext, type World } from './types';
@@ -22,15 +23,16 @@ export function stepWorld(w: World, commands: readonly BattleCommand[], rules: B
       if (a && a.side === 1) w.camps[1].refreshed = true;
     } else resolveAttack(w, action, ctx);
   }
-  // 2. 命令（玩家與 AI 同一入口）
+  // 2. 命令：玩家命令，接著 AI 到決策點時產生命令（同一個驗證入口）
   for (const cmd of commands) applyCommand(w, cmd, ctx);
+  updateAi(w, ctx);
   // 3. 波次與出兵
   updateWave(w, ctx);
   // 4.（M4）buff 到期
   // 5. 敵人移動與抵達阿斗
   moveEnemies(w, ctx);
   // 6. 士兵出手
-  updateSoldiers(w, ctx);
+  updateAttackers(w, ctx);
   // 7. 彈體
   updateProjectiles(w, ctx);
   // 8. 終局判定（同 tick 先判玩家敗，再判 AI 敗，再判 20 波）
@@ -78,6 +80,7 @@ function updateWave(w: World, ctx: StepContext): void {
 
 function startWave(w: World, wave: number, ctx: StepContext): void {
   w.wave = { phase: 'spawning', wave, timer: 0, spawned: 0 };
+  aiWaveBonus(w, wave, ctx.data);
   ctx.events.push({ type: 'waveStart', wave });
 }
 

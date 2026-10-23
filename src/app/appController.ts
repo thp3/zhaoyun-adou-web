@@ -4,7 +4,8 @@ import { DataError, loadGameData, type GameData } from '../data';
 import { createWorld } from '../domain/battle/create';
 import { surrender as surrenderWorld } from '../domain/battle/step';
 import type { BattleEvent, BattleResult } from '../domain/battle/types';
-import { applyDailyReset } from '../domain/profile/daily';
+import { applyDailyReset, registerDayIndex } from '../domain/profile/daily';
+import { generateOpponent } from '../domain/profile/opponent';
 import { createDefaultProfile, roundOfDay, totalRounds, type Profile } from '../domain/profile/profile';
 import { starToRank } from '../domain/profile/rank';
 import { applySettlement, selectMapId, type ResultDraft } from '../domain/profile/settlement';
@@ -245,7 +246,8 @@ export class AppController {
             totalRounds: totalRounds(p),
             roundOfDay: roundOfDay(p),
             addHp: data.ranks.ranks[starToRank(p.rank.curStar).rankId]!.addHp,
-            aiEnabled: false,
+            aiEnabled: true,
+            ...generateOpponent(data, seed, p.rank.curStar, registerDayIndex(p, dayKeyOf(now, data.economy.calendarZone)), roundOfDay(p)),
           }),
         }),
       );

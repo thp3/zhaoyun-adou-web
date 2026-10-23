@@ -180,11 +180,13 @@ const deckOut = {
   },
 };
 
+const chainMult = (inc) => inc.map((_, i) => inc.slice(1, i + 1).reduce((m, v) => m * (1 + v), 1));
+
 // ---------- 普通兵／農民 ----------
 const SOLDIER_IDS = ['blade', 'bow', 'spear', 'cavalry'];
 expectEq('普通兵種數', units._p.length, 4);
-// 普通兵 1–5 級累積倍率由 Et.init 逐級連乘得到
-const soldierLevelMult = [1, 1.5, 2.1, 2.73, 3.4125];
+// 普通兵 1–5 級累積倍率由 Et.init 以 yp／fp 逐級連乘得到（攻擊與攻速相同）
+const soldierLevelMult = chainMult(units.yp);
 const soldiers = units._p.map((p, i) => ({
   id: SOLDIER_IDS[i],
   soldierType: i,
@@ -257,6 +259,9 @@ const skills = raw.skills.map((s) => ({ id: s.symbol, name: tw(s.skillName), des
 const generalsOut = {
   generals,
   // 經驗門檻：高階組 Rp，普通組 Tp；餵字一律加 Rp[level]-Rp[level-1]
+  // 武將等級倍率（Et.init：Yp 由 Fp、Op 由 Cp 連乘）：傷害 ×Yp、間隔 ÷Op
+  levelDamageMultiplier: chainMult(units.Fp),
+  levelSpeedMultiplier: chainMult(units.Cp),
   expHighTier: units.Rp,
   expNormalTier: units.Tp,
   killCredit: { killerExp: 1, assistPoolByGeneral: 0.5, assistPoolByOther: 0.2 },
@@ -467,7 +472,8 @@ const economyOut = {
   battleReward: { winGold: 20, loseGold: 5, earlySurrenderWave: 5 },
   battleStart: {
     playerGold: constOf('battle').rh,
-    aiGold: constOf('battle').rh + ai.Zi,
+    // AI 資金初值 Sh=0，AI 啟動時 +Zi
+    aiGold: constOf('battle').Sh + ai.Zi,
     startCooldownMs: 5000,
   },
   calendarZone: 'Asia/Taipei',

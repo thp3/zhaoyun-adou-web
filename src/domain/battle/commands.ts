@@ -1,5 +1,7 @@
 // 玩家與 AI 共用的命令入口：validate → apply。命令只表達「想做什麼」，結果由規則決定。
+import type { GameData } from '../../data';
 import { allocId, schedule } from './create';
+import { dissolveGeneralOf, feedAmount, feedTarget, gainExp, generalMaxLevel, tryFormGeneral } from './generals';
 import { nextInt } from './rng';
 import {
   ticks,
@@ -56,10 +58,13 @@ function recruit(w: World, side: Side, ctx: StepContext): CommandResult {
     if (id !== null) delete w.actors[id];
     camp.slots[i] = null;
   });
+  const drawn = Array.from({ length: rules.slots }, () => drawToken(w, side, ctx));
+  // AI 難度 ≥2：鏟子排到前面（原版 Ln.aG）
+  if (side === 1 && w.difficulty >= 2) drawn.sort((a, b) => Number(b === 'shovel') - Number(a === 'shovel'));
   for (let i = 0; i < rules.slots; i++) {
-    const token = drawToken(w, side, ctx);
+    const token = drawn[i]!;
     const id = allocId(w);
-    const actor: Actor = { id, side, token, kind: kindOfToken(token), level: 1, loc: { c: 'incoming', i }, cooldown: 0 };
+    const actor: Actor = { id, side, token, kind: kindOfToken(token), level: 1, loc: { c: 'incoming', i }, cooldown: 0, generalId: null, exp: 0 };
     w.actors[id] = actor;
     camp.slots[i] = id;
     // 玩家：每張錯開 100ms、飛行 500ms 後落位；AI 直接到位
@@ -106,20 +111,21 @@ function clearLoc(w: World, a: Actor): void {
 }
 
 export function removeActor(w: World, a: Actor): void {
+  dissolveGeneralOf(w, a);
   clearLoc(w, a);
   delete w.actors[a.id];
 }
 
 /** 不改 World 的預檢，給 UI 標示合法落點；最終仍以 applyCommand 為準。 */
-export function previewMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc): CommandResult {
-  return checkMove(w, side, actorId, to).result;
+export function previewMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, data: GameData): CommandResult {
+  return checkMove(w, side, actorId, to, data).result;
 }
 
 type MovePlan =
   | { result: CommandResult & { ok: false } }
-  | { result: typeof ok; plan: 'move' | 'merge' | 'swap' | 'expand'; actor: Actor; other: Actor | null };
+  | { result: typeof ok; plan: 'move' | 'merge' | 'swap' | 'expand' | 'feed'; actor: Actor; other: Actor | null };
 
-function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc): MovePlan {
+function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, data: GameData): MovePlan {
   const a = w.actors[actorId];
   if (!a) return { result: { ok: false, reason: '單位已不存在' } };
   if (a.side !== side) return { result: { ok: false, reason: '不是己方單位' } };
@@ -143,6 +149,12 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
     if (b.level >= SOLDIER_MAX_LEVEL) return { result: { ok: false, reason: '已達最高等級' } };
     return { result: ok, plan: 'merge', actor: a, other: b };
   }
+  // 名字字拖到已成形武將的同字上：餵經驗
+  const g = feedTarget(w, a, b);
+  if (g) {
+    if (g.level >= generalMaxLevel(g, data)) return { result: { ok: false, reason: '武將已達最高等級' } };
+    return { result: ok, plan: 'feed', actor: a, other: b };
+  }
   // 交換：對方也必須能放到我原本的位置
   const backErr = placeOk(w, b, from);
   if (backErr) return { result: { ok: false, reason: `無法交換：${backErr}` } };
@@ -150,15 +162,23 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
 }
 
 function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx: StepContext): CommandResult {
-  const c = checkMove(w, side, actorId, to);
+  const c = checkMove(w, side, actorId, to, ctx.data);
   if (!c.result.ok) return c.result;
   const { plan, actor: a, other: b } = c as Extract<MovePlan, { plan: string }>;
   const from = a.loc;
   switch (plan) {
     case 'move':
+      dissolveGeneralOf(w, a);
       clearLoc(w, a);
       setLoc(w, a, to);
+      tryFormGeneral(w, a, ctx);
       break;
+    case 'feed': {
+      const g = w.generals[b!.generalId!]!;
+      removeActor(w, a);
+      gainExp(w, g, feedAmount(g, ctx.data), ctx);
+      break;
+    }
     case 'expand': {
       const t = to as BoardLoc;
       w.kind[t.x]![t.y] = 1;
@@ -172,10 +192,14 @@ function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx
       ctx.events.push({ type: 'merged', actorId: b!.id, level: b!.level });
       break;
     case 'swap':
+      dissolveGeneralOf(w, a);
+      dissolveGeneralOf(w, b!);
       clearLoc(w, a);
       clearLoc(w, b!);
       setLoc(w, a, to);
       setLoc(w, b!, from);
+      tryFormGeneral(w, a, ctx);
+      tryFormGeneral(w, b!, ctx);
       break;
   }
   return ok;

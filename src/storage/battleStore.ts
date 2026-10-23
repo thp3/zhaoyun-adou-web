@@ -34,11 +34,14 @@ export const BattleRecordSchema = z.object({
     roundOfDay: z.number().int().positive(),
     addHp: z.number().nonnegative(),
     aiEnabled: z.boolean(),
+    // M2 的紀錄沒有以下欄位：缺省為難度 0、對手 0 星
+    difficulty: z.number().int().min(0).max(3).default(0),
+    aiStar: z.number().int().nonnegative().default(0),
   }),
   progress: z.object({ wave: z.number().int().nonnegative(), tick: z.number().int().nonnegative(), kills: z.number().int().nonnegative() }),
   resultDraft: DraftSchema.nullable(),
 });
-export type BattleRecord = z.infer<typeof BattleRecordSchema>;
+export type BattleRecord = z.output<typeof BattleRecordSchema>;
 export type BattleSetup = BattleRecord['setup'];
 
 export interface Receipt {

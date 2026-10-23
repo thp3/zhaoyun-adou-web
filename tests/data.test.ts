@@ -85,7 +85,7 @@ describe('關鍵規則數值', () => {
 
   it('開局資金與征兵價格', () => {
     expect(d.economy.battleStart.playerGold).toBe(20);
-    expect(d.economy.battleStart.aiGold).toBe(30);
+    expect(d.economy.battleStart.aiGold).toBe(10);
     expect(d.deck.recruit.initialCost).toBe(10);
     expect(d.deck.recruit.costIncrement).toBe(2);
   });
