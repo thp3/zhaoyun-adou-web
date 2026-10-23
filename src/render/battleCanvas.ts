@@ -343,6 +343,28 @@ function drawSkillEntities(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(name, s.x, s.y + 1);
+    } else if (s.kind === 'zone') {
+      ctx.fillStyle = P.seal;
+      ctx.globalAlpha = s.side === 0 ? 0.25 : 0.12;
+      ctx.fillRect(s.x - CELL / 2 + 4, s.y - CELL / 2 + 4, CELL - 8, CELL - 8);
+      ctx.globalAlpha = s.side === 0 ? 0.8 : 0.35;
+      ctx.font = `bold 22px ${SERIF}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.left < 0 ? '蛇' : '火', s.x, s.y);
+    } else if (s.kind === 'shot') {
+      ctx.fillStyle = P.gold;
+      ctx.font = `bold ${Math.round(s.radius)}px ${SERIF}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.fx.label ?? '●', s.x, s.y);
+    } else if (s.kind === 'trap' || s.kind === 'dozer') {
+      ctx.globalAlpha = s.side === 0 ? 0.9 : 0.45;
+      ctx.fillStyle = s.kind === 'dozer' ? P.gold : P.ink2;
+      ctx.font = `bold 24px ${SERIF}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(s.kind === 'dozer' ? '車' : s.mine ? '雷' : '阱', s.x, s.y);
     } else {
       ctx.strokeStyle = P.gold;
       ctx.lineWidth = 6;

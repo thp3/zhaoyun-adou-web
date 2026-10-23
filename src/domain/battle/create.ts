@@ -2,6 +2,7 @@
 import type { GameData } from '../../data';
 import { lanePath, type Cell } from './path';
 import { createRng, pickWeighted } from './rng';
+import { initPassiveItems, toBattleItems } from './items';
 import { CELL, type AiState, type CampState, type Pt, type ScheduledAction, type World } from './types';
 
 export interface CreateWorldParams {
@@ -20,6 +21,12 @@ export interface CreateWorldParams {
   difficulty?: number;
   /** AI 傷害倍率，預設 1 */
   aiDamageMultiplier?: number;
+  /** 雙方開局裝備（12 個武將槽） */
+  playerEquip?: number[];
+  aiEquip?: number[];
+  /** 雙方對局道具（存檔格式 {id, level}） */
+  playerItems?: { id: number; level: number }[];
+  aiItems?: { id: number; level: number }[];
 }
 
 export function initialAiState(width: number, height: number): AiState {
@@ -76,7 +83,7 @@ export function createWorld(p: CreateWorldParams): World {
   // 難度 3 的 AI 牌庫另加鏟
   for (let i = 0; i < (p.aiEnabled ? data.ai.extraShovelsByDifficulty[difficulty]! : 0); i++) camps[1].deck.push('shovel');
 
-  return {
+  const w: World = {
     schema: 1,
     tick: 0,
     mapId: p.mapId,
@@ -87,6 +94,7 @@ export function createWorld(p: CreateWorldParams): World {
     board: map.kind.map((col) => col.map(() => null)),
     actors: {},
     generals: {},
+    equip: [p.playerEquip ? [...p.playerEquip] : new Array(12).fill(-1), p.aiEquip ? [...p.aiEquip] : new Array(12).fill(-1)],
     enemies: {},
     projectiles: {},
     buffs: {},
@@ -95,6 +103,16 @@ export function createWorld(p: CreateWorldParams): World {
     soulCall: [-1, -1],
     blindUntil: [0, 0],
     skills: {},
+    items: [toBattleItems(p.playerItems ?? []), toBattleItems(p.aiEnabled ? (p.aiItems ?? []) : [])],
+    itemState: {
+      recruitBoost: [false, false],
+      goldSeeker: [false, false],
+      silt: [false, false],
+      farmerTimer: [0, 0],
+      shovelTimer: [0, 0],
+      meteorCd: [0, 0],
+      lastAiItemTick: -1_000_000,
+    },
     scheduled: [],
     seq: 0,
     nextId: 1,
@@ -110,6 +128,9 @@ export function createWorld(p: CreateWorldParams): World {
     ai: initialAiState(map.width, map.height),
     result: null,
   };
+  // 被動道具開局生效（招賢榜、全體攻速、續命丹、淤泥…）
+  initPassiveItems(w, { data, events: [] });
+  return w;
 }
 
 export function allocId(w: World): number {

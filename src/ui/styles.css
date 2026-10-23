@@ -188,3 +188,8 @@ button small { display: block; font-size: .75rem; font-family: var(--font-sans);
 .result-list { display: grid; grid-template-columns: auto 1fr; gap: .4rem 1rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); }
 .result-list dt { color: var(--ink-2); }
 .result-list dd { margin: 0; }
+.item-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.item { font-family: var(--font-serif); font-size: .95rem; padding: .35rem .7rem; }
+.item.armed { outline: 3px solid var(--gold); outline-offset: 1px; }
+.item.passive { border: 1px dashed var(--line); border-radius: var(--radius); color: var(--ink-2); }
+.item-ai { font-size: .8rem; }

@@ -83,7 +83,7 @@ describe('開局與結算交易', () => {
     rulesetVersion: 'web-ai-v1',
     cost: 5,
     stamina: RULES,
-    makeSetup: () => ({ seed: 1, mapId: 0, totalRounds: 0, roundOfDay: 1, addHp: 0, aiEnabled: false, difficulty: 0, aiStar: 0 }),
+    makeSetup: () => ({ seed: 1, mapId: 0, totalRounds: 0, roundOfDay: 1, addHp: 0, aiEnabled: false, difficulty: 0, aiStar: 0, playerEquip: new Array(12).fill(-1), aiEquip: new Array(12).fill(-1), playerItems: [], aiItems: [] }),
   });
 
   it('連點開始：只建立一場、只扣一次 5 體力', async () => {

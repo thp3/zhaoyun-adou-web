@@ -2,8 +2,9 @@
 import type { GameData } from '../../data';
 import { clearBuffs, inheritGlobals, onUnitLevelUp, unitPinned, unitSuppressed } from './buffs';
 import { allocId, schedule } from './create';
+import { expandCell, onFarmerPlaced, onNameDrawn, promotionChance, useItem } from './items';
 import { dissolveGeneralOf, feedAmount, feedTarget, gainExp, generalMaxLevel, tryFormGeneral } from './generals';
-import { nextInt } from './rng';
+import { nextFloat, nextInt } from './rng';
 import {
   ticks,
   type Actor,
@@ -25,7 +26,7 @@ const SOLDIER_TOKENS = new Set(['blade', 'bow', 'spear', 'cavalry']);
 /** 與 data/units.json soldierMaxLevel 相同（schema 固定為 5） */
 const SOLDIER_MAX_LEVEL = 5;
 const kindOfToken = (token: string): ActorKind =>
-  SOLDIER_TOKENS.has(token) ? 'soldier' : token === 'shovel' ? 'shovel' : 'name';
+  SOLDIER_TOKENS.has(token) ? 'soldier' : token === 'shovel' ? 'shovel' : token === 'farmer' ? 'farmer' : 'name';
 
 /** 抽一張：均勻選條目；兵／鏟／農不移除，名字字移除；牌庫空回退刀。 */
 export function drawToken(w: World, side: Side, ctx: StepContext): string {
@@ -33,13 +34,21 @@ export function drawToken(w: World, side: Side, ctx: StepContext): string {
   if (deck.length === 0) return ctx.data.deck.emptyFallback;
   const i = nextInt(w.rng, 'deck', deck.length);
   const token = deck[i]!;
-  if (!ctx.data.deck.nonConsumable.includes(token)) deck.splice(i, 1);
+  if (!ctx.data.deck.nonConsumable.includes(token)) {
+    deck.splice(i, 1);
+    onNameDrawn(w, side, token);
+  }
   return token;
 }
 
 export function applyCommand(w: World, cmd: BattleCommand, ctx: StepContext): CommandResult {
   if (w.result) return no('對局已結束');
-  const res = cmd.type === 'RECRUIT' ? recruit(w, cmd.side, ctx) : move(w, cmd.side, cmd.actorId, cmd.to, ctx);
+  const res =
+    cmd.type === 'RECRUIT'
+      ? recruit(w, cmd.side, ctx)
+      : cmd.type === 'USE_ITEM'
+        ? useItem(w, cmd.side, cmd.slot, cmd.to, ctx)
+        : move(w, cmd.side, cmd.actorId, cmd.to, ctx);
   if (!res.ok) ctx.events.push({ type: 'rejected', side: cmd.side, reason: res.reason });
   return res;
 }
@@ -65,7 +74,10 @@ function recruit(w: World, side: Side, ctx: StepContext): CommandResult {
   for (let i = 0; i < rules.slots; i++) {
     const token = drawn[i]!;
     const id = allocId(w);
-    const actor: Actor = { id, side, token, kind: kindOfToken(token), level: 1, loc: { c: 'incoming', i }, cooldown: 0, generalId: null, exp: 0 };
+    const kind = kindOfToken(token);
+    // 升職令：刷新欄新建的 1 級普通兵有機率直接 2 級
+    const level = kind === 'soldier' && nextFloat(w.rng, 'combat') < promotionChance(w, side, ctx.data) ? 2 : 1;
+    const actor: Actor = { id, side, token, kind, level, loc: { c: 'incoming', i }, cooldown: 0, generalId: null, exp: 0 };
     w.actors[id] = actor;
     camp.slots[i] = id;
     if (actor.kind === 'soldier') inheritGlobals(w, id, side, 'units', ctx);
@@ -84,6 +96,8 @@ function cellOk(w: World, a: Actor, to: BoardLoc): string | null {
   if (w.camp[to.x]![to.y] !== a.side) return '只能放在己方陣地';
   const k = w.kind[to.x]![to.y];
   if (a.kind === 'shovel') return k === 2 ? null : '鏟子只能用在待開墾地';
+  // 農民可放己方已開墾或待開墾地
+  if (a.kind === 'farmer') return k === 1 || k === 2 ? null : '道路上不能部署';
   if (k === 2) return '這塊地還沒開墾';
   if (k !== 1) return '道路上不能部署';
   return null;
@@ -149,7 +163,7 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
   if (b.loc.c === 'incoming') return { result: { ok: false, reason: '欄位正在征兵' } };
   if (unitPinned(w, b.id)) return { result: { ok: false, reason: '目標受控制，無法交換' } };
   if (a.kind === 'shovel' && to.c === 'board') return { result: { ok: false, reason: '這塊地上已有單位' } };
-  if (a.kind === 'soldier' && b.kind === 'soldier' && a.token === b.token) {
+  if ((a.kind === 'soldier' || a.kind === 'farmer') && a.kind === b.kind && a.token === b.token) {
     if (unitSuppressed(w, a.id) || unitSuppressed(w, b.id)) return { result: { ok: false, reason: '受壓制不能合成' } };
     if (a.level !== b.level) return { result: { ok: false, reason: '等級不同不能合成' } };
     if (b.level >= SOLDIER_MAX_LEVEL) return { result: { ok: false, reason: '已達最高等級' } };
@@ -178,6 +192,7 @@ function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx
       clearLoc(w, a);
       setLoc(w, a, to);
       tryFormGeneral(w, a, ctx);
+      onFarmerPlaced(w, a);
       break;
     case 'feed': {
       const g = w.generals[b!.generalId!]!;
@@ -187,9 +202,8 @@ function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx
     }
     case 'expand': {
       const t = to as BoardLoc;
-      w.kind[t.x]![t.y] = 1;
       removeActor(w, a);
-      ctx.events.push({ type: 'expanded', x: t.x, y: t.y });
+      expandCell(w, side, t.x, t.y, ctx);
       break;
     }
     case 'merge':
@@ -207,6 +221,8 @@ function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx
       setLoc(w, b!, from);
       tryFormGeneral(w, a, ctx);
       tryFormGeneral(w, b!, ctx);
+      onFarmerPlaced(w, a);
+      onFarmerPlaced(w, b!);
       break;
   }
   return ok;

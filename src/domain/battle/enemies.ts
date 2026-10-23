@@ -2,6 +2,7 @@
 import { BUFF, clearBuffs, enemyHalted, enemyMaxHp, hasBuff, inheritGlobals, removeBuffType, setBuffDamageHook, statBonus } from './buffs';
 import { allocId, schedule } from './create';
 import { gainExp } from './generals';
+import { weaponOnEnemyDied } from './weapons';
 import { TICK_MS, ticks, type AttackSource, type Enemy, type Side, type StepContext, type World } from './types';
 
 /** 普通敵人血量 */
@@ -150,6 +151,7 @@ export function damageEnemy(w: World, e: Enemy, amount: number, src: AttackSourc
   removeEnemy(w, e);
   creditKill(w, e, src, ctx);
   onEnemyDied(w, e);
+  weaponOnEnemyDied(w, e, ctx);
   ctx.events.push({ type: 'enemyDied', enemyId: e.id, side: e.side, x: e.x, y: e.y, reward });
 }
 

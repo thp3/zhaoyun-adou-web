@@ -6,6 +6,8 @@ import { resolveAttack, updateAttackers, updateProjectiles } from './combat';
 import { applyCommand } from './commands';
 import { moveEnemies, reviveZombie, spawnEnemy } from './enemies';
 import { isSkillAction, resolveSkill, updateSkillEntities } from './skills';
+import { resolveWeaponFx, updateWeaponEntities } from './weapons';
+import { resolveItemFx, updateItems } from './items';
 import { ticks, type BattleCommand, type BattleEvent, type BattleResult, type BattleRules, type StepContext, type World } from './types';
 
 export function stepWorld(w: World, commands: readonly BattleCommand[], rules: BattleRules): BattleEvent[] {
@@ -25,6 +27,8 @@ export function stepWorld(w: World, commands: readonly BattleCommand[], rules: B
       }
       if (a && a.side === 1) w.camps[1].refreshed = true;
     } else if (isSkillAction(action)) resolveSkill(w, action, ctx);
+    else if (action.kind === 'weaponFx') resolveWeaponFx(w, action, ctx);
+    else if (action.kind === 'itemFx') resolveItemFx(w, action, ctx);
     else if (isBossAction(action)) resolveBossAction(w, action, ctx, (side, x, y, idx) => reviveZombie(w, side, x, y, idx, ctx));
     else resolveAttack(w, action, ctx);
   }
@@ -35,6 +39,7 @@ export function stepWorld(w: World, commands: readonly BattleCommand[], rules: B
   updateWave(w, ctx);
   // 4. buff 到期與灼燒；Boss 冷卻與施法
   updateBuffs(w, ctx);
+  updateItems(w, ctx);
   updateBosses(w, ctx);
   // 5. 敵人移動（含擊退）與抵達阿斗
   moveEnemies(w, ctx);
@@ -43,6 +48,7 @@ export function stepWorld(w: World, commands: readonly BattleCommand[], rules: B
   // 7. 彈體與持續型技能
   updateProjectiles(w, ctx);
   updateSkillEntities(w, ctx);
+  updateWeaponEntities(w, ctx);
   // 8. 終局判定（同 tick 先判玩家敗，再判 AI 敗，再判 20 波）
   const result = judge(w);
   if (result) {

@@ -32,6 +32,11 @@ export class BattleScreen {
   };
   private readonly toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite' });
   private readonly overlay = h('div', { class: 'backdrop', hidden: true });
+  private readonly itemBar = h('div', { class: 'item-bar', 'aria-label': '我方道具' });
+  private readonly aiItems = h('div', { class: 'item-ai muted' });
+  private itemSig = '';
+  /** 已選取、等待點目標的道具欄位 */
+  private armed: number | null = null;
   private effects: Effect[] = [];
   private drag: DragState | null = null;
   private palette: Palette;
@@ -65,6 +70,8 @@ export class BattleScreen {
         ),
       ),
       h('div', { class: 'canvas-wrap' }, this.canvas, this.toast),
+      this.itemBar,
+      this.aiItems,
       this.overlay,
     );
     this.palette = readPalette(document.documentElement);
@@ -164,7 +171,49 @@ export class BattleScreen {
     this.toastTimer = window.setTimeout(() => this.toast.classList.remove('show'), 1500);
   }
 
+  /** 道具欄：狀態有變才重建按鈕 */
+  private updateItems(): void {
+    const w = this.session.world;
+    const data = this.view.data!;
+    const running = this.view.state === 'BATTLE_RUNNING';
+    const sig = JSON.stringify([w.items[0].map((i) => [i.itemId, i.level, Math.ceil(i.cd / 50)]), this.armed, running, w.items[1].map((i) => i.itemId)]);
+    if (sig === this.itemSig) return;
+    this.itemSig = sig;
+    const buttons = w.items[0].map((it, slot) => {
+      const def = data.items.items[it.itemId]!;
+      const secs = Math.ceil((it.cd * 20) / 1000);
+      const label = def.levels ? `${def.name} ${it.level}` : def.name;
+      if (!def.active) return h('span', { class: 'item passive', title: def.intro.replace('{type}', '') }, label);
+      return h(
+        'button',
+        {
+          class: `item${this.armed === slot ? ' armed' : ''}`,
+          disabled: !running || it.cd > 0,
+          title: def.intro.replace('{type}', ''),
+          onclick: () => this.onItemClick(slot, it.itemId),
+        },
+        label,
+        it.cd > 0 && h('small', null, `${secs}s`),
+      );
+    });
+    this.itemBar.replaceChildren(...(buttons.length ? buttons : [h('span', { class: 'muted' }, '沒有道具（商店於 M5 開放）')]));
+    const ai = w.items[1].map((i) => data.items.items[i.itemId]!.name);
+    this.aiItems.textContent = ai.length ? `對方道具：${ai.join('、')}` : '';
+  }
+
+  private onItemClick(slot: number, itemId: number): void {
+    // 不需要目標的道具（推土車、包子）點了就用
+    if (itemId === 1 || itemId === 5) {
+      this.session.enqueue({ type: 'USE_ITEM', side: 0, slot, to: null });
+      this.armed = null;
+      return;
+    }
+    this.armed = this.armed === slot ? null : slot;
+    if (this.armed !== null) this.showToast('點選要使用的目標');
+  }
+
   private updateHud(): void {
+    this.updateItems();
     const w = this.session.world;
     const data = this.view.data!;
     const s = w.wave;
@@ -238,6 +287,13 @@ export class BattleScreen {
       if (this.view.state !== 'BATTLE_RUNNING' || this.drag || !e.isPrimary) return;
       const p = this.toWorld(e);
       const loc = this.locAt(p.x, p.y);
+      if (this.armed !== null) {
+        // 已選道具：這次點擊當作使用目標
+        if (loc) this.session.enqueue({ type: 'USE_ITEM', side: 0, slot: this.armed, to: loc });
+        this.armed = null;
+        e.preventDefault();
+        return;
+      }
       const id = loc ? this.actorAt(loc) : null;
       if (id === null) return;
       c.setPointerCapture(e.pointerId);

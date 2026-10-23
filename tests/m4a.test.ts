@@ -3,6 +3,7 @@ import { loadGameData } from '../src/data';
 import { maybeSpawnBoss } from '../src/domain/battle/bosses';
 import { BUFF, addGlobal, applyBuff, attackSpeedBonus, hasBuff, onUnitLevelUp, unitDisabled } from '../src/domain/battle/buffs';
 import { generalCenter } from '../src/domain/battle/generals';
+import { emptyWeaponState } from '../src/domain/battle/weapons';
 import { applyCommand } from '../src/domain/battle/commands';
 import { createWorld } from '../src/domain/battle/create';
 import { damageEnemy, maxHpOf, spawnEnemy } from '../src/domain/battle/enemies';
@@ -313,7 +314,7 @@ describe('7 種武將技能', () => {
       return id;
     });
     const gid = w.nextId++;
-    const g: General = { id: gid, side: 0, type: def.id, partIds: ids, level, exp: 0, cooldown: 0, skillCount: def.skill?.triggerAttacks ?? 0, busyUntil: 0 };
+    const g: General = { id: gid, side: 0, type: def.id, partIds: ids, level, exp: 0, cooldown: 0, skillCount: def.skill?.triggerAttacks ?? 0, busyUntil: 0, weaponId: -1, weapon: emptyWeaponState() };
     for (const id of ids) w.actors[id]!.generalId = gid;
     w.generals[gid] = g;
     return g;

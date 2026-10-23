@@ -3,6 +3,7 @@
 // → 4 配字、依價值排序、規劃佈局 → 5 每步搬一個單位到規劃位置 → 回 1。
 import type { GameData } from '../../../data';
 import { applyCommand, removeActor } from '../commands';
+import { aiUseItem } from '../items';
 import { nextFloat, nextInt } from '../rng';
 import { TICK_MS, type Actor, type BattleCommand, type StepContext, type World } from '../types';
 import { aiBasePath, bestScoreAt, scoreFor, scoreMaps, type ScoreMaps } from './scoring';
@@ -248,7 +249,8 @@ function stage1(c: AiContext): void {
     }
     return;
   }
-  // 原版 KO：使用主動道具（M4 道具系統接入）
+  // 原版 KO：沒錢時使用主動道具
+  aiUseItem(w, c.ctx);
 }
 
 function stage2(c: AiContext): void {

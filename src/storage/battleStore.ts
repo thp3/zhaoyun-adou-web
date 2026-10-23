@@ -37,6 +37,11 @@ export const BattleRecordSchema = z.object({
     // M2 的紀錄沒有以下欄位：缺省為難度 0、對手 0 星
     difficulty: z.number().int().min(0).max(3).default(0),
     aiStar: z.number().int().nonnegative().default(0),
+    // M4b 起：雙方開局裝備快照
+    playerEquip: z.array(z.number().int().min(-1)).length(12).default(() => new Array(12).fill(-1)),
+    aiEquip: z.array(z.number().int().min(-1)).length(12).default(() => new Array(12).fill(-1)),
+    playerItems: z.array(z.object({ id: z.number().int(), level: z.number().int().positive() })).default([]),
+    aiItems: z.array(z.object({ id: z.number().int(), level: z.number().int().positive() })).default([]),
   }),
   progress: z.object({ wave: z.number().int().nonnegative(), tick: z.number().int().nonnegative(), kills: z.number().int().nonnegative() }),
   resultDraft: DraftSchema.nullable(),

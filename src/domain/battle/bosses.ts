@@ -4,6 +4,7 @@
 // 各技能的動畫時長改用固定時間軸表示，屬待校正數值。
 import { BUFF, addGlobal, applyBuff, enemyHalted, hasBuff } from './buffs';
 import { removeActor } from './commands';
+import { exorcismBlocks } from './items';
 import { schedule } from './create';
 import { enemyHp, removeEnemy, spawnEnemy } from './enemies';
 import { nextFloat, nextInt } from './rng';
@@ -43,7 +44,8 @@ export function updateBosses(w: World, ctx: StepContext): void {
     bs.cd = 0;
     // 甄宓每隻只真正施法一次
     if (bs.bossId === 4 && bs.usedOnce) continue;
-    // 降妖符攔截於 M4b 道具系統接入
+    // 降妖符：自己防區的 Boss 施法 50% 失敗並反噬
+    if (exorcismBlocks(w, e, ctx)) continue;
     bs.cast = 0;
     bs.castData = {};
     startCast(w, e, ctx);

@@ -2,6 +2,7 @@
 // 經驗存在武將與組成字上，拆開再合沿用較大者。
 import { clearBuffs, inheritGlobals } from './buffs';
 import { allocId } from './create';
+import { emptyWeaponState, equipWeapon, unequipWeapon, weaponAT, weaponOnLevelUp } from './weapons';
 import { CELL, type Actor, type General, type Pt, type Side, type StepContext, type World } from './types';
 import type { GameData } from '../../data';
 
@@ -26,7 +27,7 @@ export function generalStats(w: World, g: General, data: GameData) {
   return {
     def,
     // 武器攻擊加成 AT 於 M4/M5 接入，目前為 0
-    damage: def.damage * data.generals.levelDamageMultiplier[lv]! * mult,
+    damage: (def.damage + weaponAT(g, data)) * data.generals.levelDamageMultiplier[lv]! * mult,
     range: def.rangeCells * CELL,
     intervalMs: (def.intervalSec * 1000) / data.generals.levelSpeedMultiplier[lv]!,
     targetRule: def.targetRule,
@@ -66,10 +67,13 @@ export function tryFormGeneral(w: World, a: Actor, ctx: StepContext): General | 
       cooldown: 0,
       skillCount: 0,
       busyUntil: 0,
+      weaponId: -1,
+      weapon: emptyWeaponState(),
     };
     g.level = levelFromExp(def, exp, ctx.data);
     for (const p of parts) p.generalId = g.id;
     w.generals[g.id] = g;
+    equipWeapon(w, g, ctx);
     inheritGlobals(w, g.id, g.side, 'units', ctx);
     ctx.events.push({ type: 'generalFormed', generalId: g.id, side: g.side });
     return g;
@@ -83,6 +87,7 @@ export function dissolveGeneralOf(w: World, a: Actor): void {
   const g = w.generals[a.generalId];
   a.generalId = null;
   if (!g) return;
+  unequipWeapon(w, g);
   for (const id of g.partIds) {
     const p = w.actors[id];
     if (p) {
@@ -107,7 +112,9 @@ export function gainExp(w: World, g: General, amount: number, ctx: StepContext):
   }
   const level = Math.min(def.maxLevel, levelFromExp(def, g.exp, ctx.data));
   if (level !== g.level) {
+    const up = level > g.level;
     g.level = level;
+    if (up) weaponOnLevelUp(w, g, ctx);
     ctx.events.push({ type: 'generalLevel', generalId: g.id, level });
   }
 }

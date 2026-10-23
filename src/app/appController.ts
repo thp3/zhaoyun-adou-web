@@ -247,6 +247,8 @@ export class AppController {
             roundOfDay: roundOfDay(p),
             addHp: data.ranks.ranks[starToRank(p.rank.curStar).rankId]!.addHp,
             aiEnabled: true,
+            playerEquip: [...p.equip],
+            playerItems: p.items.map((i) => ({ ...i })),
             ...generateOpponent(data, seed, p.rank.curStar, registerDayIndex(p, dayKeyOf(now, data.economy.calendarZone)), roundOfDay(p)),
           }),
         }),

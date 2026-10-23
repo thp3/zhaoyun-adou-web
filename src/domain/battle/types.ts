@@ -15,7 +15,7 @@ export type SlotLoc = { c: 'slot'; i: number };
 export type IncomingLoc = { c: 'incoming'; i: number };
 export type Loc = BoardLoc | SlotLoc | IncomingLoc;
 
-export type ActorKind = 'soldier' | 'name' | 'shovel';
+export type ActorKind = 'soldier' | 'name' | 'shovel' | 'farmer';
 
 export interface Actor {
   id: number;
@@ -30,6 +30,18 @@ export interface Actor {
   generalId: number | null;
   /** 名字字保留的武將經驗（拆開後再合仍沿用較大者） */
   exp: number;
+  /** 農民：生產計時（tick）與「狂熱」剩餘 tick */
+  farm?: { timer: number; crazy: number };
+}
+
+/** 對局中持有的道具 */
+export interface BattleItem {
+  itemId: number;
+  level: number;
+  /** 冷卻剩餘 tick */
+  cd: number;
+  /** 已使用次數（包子每 10 次才進冷卻） */
+  uses: number;
 }
 
 /** 已成形的武將：由同一列相鄰、依序排列的名字字組成 */
@@ -47,6 +59,22 @@ export interface General {
   skillCount: number;
   /** 技能接管中，暫停普攻直到這個 tick */
   busyUntil: number;
+  /** 裝備武器 id；-1 為該類預設武器 */
+  weaponId: number;
+  weapon: WeaponState;
+}
+
+/** 武器執行狀態（原版各武器類的欄位：連擊 xR/bR、計數 DR/VR/bU、首擊名單 KR、追蹤敵、旋斬 OC、劍技模式 AU/EU） */
+export interface WeaponState {
+  stackTarget: number | null;
+  stacks: number;
+  counter: number;
+  seen: number[];
+  tracked: number | null;
+  spinNext: boolean;
+  /** 劍：小人模式結束、虛弱結束的 tick；0 表示未進入 */
+  villainUntil: number;
+  weakUntil: number;
 }
 
 export interface Enemy {
@@ -130,6 +158,62 @@ export type SkillEntity =
     }
   | {
       id: number;
+      /** 直線飛行彈體：老鷹、火龍、鳳凰、刀氣、連弩火箭 */
+      kind: 'shot';
+      side: Side;
+      src: AttackSource;
+      damage: number;
+      x: number;
+      y: number;
+      dx: number;
+      dy: number;
+      speed: number;
+      left: number;
+      traveled: number;
+      pierce: boolean;
+      radius: number;
+      hit: number[];
+      fx: ShotFx;
+    }
+  | {
+      id: number;
+      /** 地面持續區：鐵胎弓地火、丈八蛇矛的蛇 */
+      kind: 'zone';
+      side: Side;
+      src: AttackSource;
+      damage: number;
+      x: number;
+      y: number;
+      /** 剩餘 tick；-1 永久 */
+      left: number;
+      /** 同一敵人再次受傷的間隔（tick） */
+      rehit: number;
+      lastHit: Record<number, number>;
+    }
+  | {
+      id: number;
+      /** 陷阱（只抓一隻、限制 5 秒）或地雷（任一敵人踩到即爆，不分陣營） */
+      kind: 'trap';
+      side: Side;
+      owner: Side;
+      mine: boolean;
+      x: number;
+      y: number;
+      fuse: number;
+    }
+  | {
+      id: number;
+      /** 推土車：等敵人接近終點才出發，沿路倒退把敵人一起推回 */
+      kind: 'dozer';
+      side: Side;
+      pathIdx: number;
+      x: number;
+      y: number;
+      active: boolean;
+      fade: number;
+    }
+  | {
+      id: number;
       kind: 'sword';
       side: Side;
       src: AttackSource;
@@ -141,6 +225,18 @@ export type SkillEntity =
       left: number;
       hit: number[];
     };
+
+export interface ShotFx {
+  knock?: number;
+  /** 命中減速：移速 ×0.2，1 秒內恢復 */
+  slow?: boolean;
+  burn?: { num: number; ms: number };
+  /** 落日鳳凰：飛越距離越遠傷害越高，最高 2 倍 */
+  growth?: boolean;
+  /** 鐵胎火龍：沿途在己方道路留下地火 */
+  fireTrail?: boolean;
+  label?: string;
+}
 
 /** 攻擊來源：普通兵 actor 或武將 */
 export type AttackSource = { kind: 'actor' | 'general'; id: number };
@@ -154,6 +250,8 @@ export interface Projectile {
   y: number;
   speed: number;
   damage: number;
+  /** 命中時的範圍傷害（七星刀流星） */
+  blast?: { r: number; damage: number; knock: number };
 }
 
 /** 延遲事件：只存資料，載入時由白名單 handler 依 kind 處理 */
@@ -170,6 +268,8 @@ export type ScheduledAction =
   | { kind: 'reviveZombie'; side: Side; x: number; y: number; pathIdx: number }
   | { kind: 'puppet'; side: Side; actorId: number; bossId: number }
   | { kind: 'demolish'; side: Side; x: number; y: number }
+  | { kind: 'weaponFx'; generalId: number; fx: string; targetId: number; n: number }
+  | { kind: 'itemFx'; side: Side; itemId: number; targetId: number; x: number; y: number }
 
 export interface Scheduled {
   due: number;
@@ -224,6 +324,8 @@ export interface World {
   board: (number | null)[][];
   actors: Record<number, Actor>;
   generals: Record<number, General>;
+  /** 開局凍結的裝備：equip[side][武將索引] = 武器 id（-1 預設） */
+  equip: [number[], number[]];
   enemies: Record<number, Enemy>;
   projectiles: Record<number, Projectile>;
   /** 目標 id → buff 列表（目標可為敵人、普通兵、名字字或武將） */
@@ -237,6 +339,18 @@ export interface World {
   blindUntil: [number, number];
   /** 進行中的技能實體（七進七出幻象等） */
   skills: Record<number, SkillEntity>;
+  /** 雙方道具欄 */
+  items: [BattleItem[], BattleItem[]];
+  /** 道具帶來的旗標與計時（tick） */
+  itemState: {
+    recruitBoost: [boolean, boolean];
+    goldSeeker: [boolean, boolean];
+    silt: [boolean, boolean];
+    farmerTimer: [number, number];
+    shovelTimer: [number, number];
+    meteorCd: [number, number];
+    lastAiItemTick: number;
+  };
   scheduled: Scheduled[];
   seq: number;
   nextId: number;
@@ -304,6 +418,7 @@ export type BattleEvent =
 
 export type BattleCommand =
   | { type: 'RECRUIT'; side: Side }
+  | { type: 'USE_ITEM'; side: Side; slot: number; to: BoardLoc | SlotLoc | null }
   | { type: 'MOVE'; side: Side; actorId: number; to: BoardLoc | SlotLoc };
 
 export interface BattleRules {

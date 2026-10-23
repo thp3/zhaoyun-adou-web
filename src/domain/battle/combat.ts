@@ -1,11 +1,12 @@
 // 攻擊：普通兵與武將共用同一套延遲出手與命中。四種出手延遲依原版動畫時序（刀 500ms 命中、弓 650ms 放箭、
 // 槍 480ms 刺出、騎／劍 150ms 掃掠），改由模擬排程決定；延遲與彈速屬待校正數值。
 // 武將依武器類型出手（弓→箭、槍→刺、刀→砍、劍→掃）；具名技能與武器特效於 M4 加入。
-import { BUFF, attackSpeedBonus, statBonus, unitDisabled, unitSuppressed } from './buffs';
+import { BUFF, applyBuff, attackSpeedBonus, statBonus, unitDisabled, unitSuppressed } from './buffs';
 import { allocId, schedule } from './create';
 import { damageEnemy, remainingDistance } from './enemies';
 import { generalCenter, generalStats } from './generals';
 import { afterGeneralAttack, beforeGeneralAttack, onGeneralHit } from './skills';
+import { weaponAfterAttack, weaponAttack, weaponOnHit, weaponRangeMult } from './weapons';
 import {
   CELL,
   TICK_MS,
@@ -13,6 +14,7 @@ import {
   type Actor,
   type AttackSource,
   type Enemy,
+  type General,
   type Pt,
   type ScheduledAction,
   type Side,
@@ -81,7 +83,7 @@ function attackerOf(w: World, src: AttackSource, ctx: StepContext): Attacker | n
     side: g.side,
     at,
     damage: st.damage + statBonus(w, g.id, BUFF.attPower, st.damage),
-    range: (rangeCells + statBonus(w, g.id, BUFF.attRange, rangeCells)) * CELL,
+    range: (rangeCells + statBonus(w, g.id, BUFF.attRange, rangeCells)) * CELL * weaponRangeMult(w, g),
     intervalTicks: ticks(st.intervalMs / (1 + attackSpeedBonus(w, g.id))),
     targetRule: st.targetRule,
     style: WEAPON_STYLE[st.def.weaponType]!,
@@ -114,20 +116,36 @@ export function pickTarget(w: World, at: Pt, cands: Enemy[], rule: string): Enem
   return best;
 }
 
+function scheduleNormal(w: World, atk: Attacker, style: Style, target: Enemy, repeat: number): void {
+  const base = { src: atk.src, damage: atk.damage };
+  const action: ScheduledAction =
+    style === 'melee'
+      ? { kind: 'meleeHit', targetId: target.id, ...base }
+      : style === 'arrow'
+        ? { kind: 'fireArrow', targetId: target.id, ...base }
+        : style === 'spear'
+          ? { kind: 'spearThrust', targetId: target.id, ...base }
+          : { kind: 'cavalrySweep', ...base };
+  // 多段（趙雲五連刺）每段相隔 100ms，各段可再傷同一敵人
+  for (let i = 0; i < repeat; i++) schedule(w, ticks(DELAY_MS[style] + i * 100), action);
+}
+
 function tryAttack(w: World, atk: Attacker, setCooldown: (t: number) => void, ctx: StepContext): boolean {
   const target = pickTarget(w, atk.at, enemiesInRange(w, atk.side, atk.at, atk.range), atk.targetRule);
   if (!target) return false;
   setCooldown(atk.intervalTicks);
-  const base = { src: atk.src, damage: atk.damage };
-  const action: ScheduledAction =
-    atk.style === 'melee'
-      ? { kind: 'meleeHit', targetId: target.id, ...base }
-      : atk.style === 'arrow'
-        ? { kind: 'fireArrow', targetId: target.id, ...base }
-        : atk.style === 'spear'
-          ? { kind: 'spearThrust', targetId: target.id, ...base }
-          : { kind: 'cavalrySweep', ...base };
-  schedule(w, ticks(DELAY_MS[atk.style]), action);
+  scheduleNormal(w, atk, atk.style, target, 1);
+  return true;
+}
+
+/** 武將出手：先交給武器決定普攻型態或特技 */
+function generalAttack(w: World, g: General, atk: Attacker, ctx: StepContext): boolean {
+  const target = pickTarget(w, atk.at, enemiesInRange(w, atk.side, atk.at, atk.range), atk.targetRule);
+  if (!target) return false;
+  g.cooldown = atk.intervalTicks;
+  const plan = weaponAttack(w, g, atk, target, ctx);
+  if (plan) scheduleNormal(w, atk, plan.style, target, plan.repeat);
+  weaponAfterAttack(w, g, atk, target, ctx);
   return true;
 }
 
@@ -150,7 +168,7 @@ export function updateAttackers(w: World, ctx: StepContext): void {
       g.cooldown = atk.intervalTicks;
       continue;
     }
-    if (tryAttack(w, atk, (t) => (g.cooldown = t), ctx)) afterGeneralAttack(w, g, atk, ctx);
+    if (generalAttack(w, g, atk, ctx)) afterGeneralAttack(w, g, atk, ctx);
   }
 }
 
@@ -159,7 +177,12 @@ export type AttackAction = Extract<ScheduledAction, { src: AttackSource }>;
 /** 命中：扣血，並觸發武將的命中附加效果（暈眩技能等） */
 export function hitEnemy(w: World, e: Enemy, damage: number, src: AttackSource, ctx: StepContext): void {
   if (!w.enemies[e.id]) return;
-  if (src.kind === 'general') onGeneralHit(w, src.id, e, ctx);
+  if (src.kind === 'general') {
+    onGeneralHit(w, src.id, e, ctx);
+    const g = w.generals[src.id];
+    if (g && w.enemies[e.id]) weaponOnHit(w, g, e, damage, ctx);
+    if (!w.enemies[e.id]) return;
+  }
   damageEnemy(w, e, damage, src, ctx);
 }
 
@@ -225,7 +248,20 @@ export function updateProjectiles(w: World, ctx: StepContext): void {
     if (d <= step) {
       delete w.projectiles[p.id];
       ctx.events.push({ type: 'attack', src: p.src, kind: 'arrow', x: p.x, y: p.y, tx: t.x, ty: t.y });
+      const bx = t.x;
+      const by = t.y;
       hitEnemy(w, t, p.damage, p.src, ctx);
+      if (p.blast) {
+        // 流星落地：範圍傷害依距離衰減並擊退
+        ctx.events.push({ type: 'blast', x: bx, y: by, r: p.blast.r });
+        for (const e of Object.values(w.enemies)) {
+          if (e.side !== p.side) continue;
+          const d = Math.hypot(e.x - bx, e.y - by);
+          if (d > p.blast.r) continue;
+          damageEnemy(w, e, p.blast.damage * (1 - d / p.blast.r), p.src, ctx);
+          if (w.enemies[e.id] && p.blast.knock > 0) applyBuff(w, e.id, BUFF.knockback, p.blast.knock, { timeMs: -1 }, ctx);
+        }
+      }
     } else {
       p.x += ((t.x - p.x) / d) * step;
       p.y += ((t.y - p.y) / d) * step;

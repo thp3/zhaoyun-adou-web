@@ -54,6 +54,13 @@ export function beforeGeneralAttack(w: World, g: General, atk: Attacker, ctx: St
       if (!lowestHpEnemy(w, g.side)) return false;
       g.skillCount = 0;
       const hops = JUMP_HOPS[def.key] ?? 1;
+      // 關羽持青龍偃月刀：跳斬時對全場敵人各放一道追蹤刀氣
+      if (g.weaponId === 29 && def.key === 'guanyu') {
+        for (const e of sideEnemies(w, g.side)) {
+          const id = allocId(w);
+          w.projectiles[id] = { id, side: g.side, src: { kind: 'general', id: g.id }, targetId: e.id, x: at.x, y: at.y, speed: 960, damage: atk.damage };
+        }
+      }
       g.busyUntil = w.tick + ticks(HOP_MS * (hops + 1));
       schedule(w, ticks(HOP_MS), { kind: 'jumpSlash', generalId: g.id, hopsLeft: hops });
       ctx.events.push({ type: 'skill', side: g.side, name: skillName('ta', ctx), x: at.x, y: at.y });
@@ -279,6 +286,7 @@ export function updateSkillEntities(w: World, ctx: StepContext): void {
       if (s.left <= 0 || s.x < -80 || s.y < -80 || s.x > 720 || s.y > 880) delete w.skills[s.id];
       continue;
     }
+    if (s.kind !== 'phantom') continue;
     // 幻象
     if (!w.generals[s.generalId]) {
       delete w.skills[s.id];
