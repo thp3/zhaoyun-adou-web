@@ -2,6 +2,7 @@
 import type { AppController, AppView } from '../app/appController';
 import { starToRank } from '../domain/profile/rank';
 import { h } from './dom';
+import { icon, type IconName } from './icons';
 
 export function renderOpponent(view: AppView, app: AppController): HTMLElement {
   const b = view.battle!;
@@ -10,30 +11,49 @@ export function renderOpponent(view: AppView, app: AppController): HTMLElement {
   const ai = starToRank(b.setup.aiStar);
   const aiRank = data.ranks.ranks[ai.rankId]!;
   const aiRankText = ai.rankId >= 50 ? `${aiRank.name} ${ai.level} 星` : `${aiRank.name} 第 ${ai.level} 星`;
+  const me = view.profile ? starToRank(view.profile.rank.curStar) : null;
+  const meRank = me ? data.ranks.ranks[me.rankId]! : null;
   return h(
     'main',
     { class: 'screen center' },
-    h('h1', { class: 'title' }, '對手準備'),
+    h('div', { class: 'map-banner' }, icon('flag'), `戰場 · ${map.name}`),
     h(
       'section',
-      { class: 'rank-card' },
-      h('div', { class: 'seal' }, map.name.slice(0, 2)),
-      h('div', null, h('div', { class: 'rank-name' }, `戰場：${map.name}`), h('div', { class: 'muted' }, b.setup.aiEnabled ? `對手：本機 AI · ${aiRankText}` : '對手：本機 AI（未出手）')),
+      { class: 'card versus' },
+      h(
+        'div',
+        { class: 'versus-side' },
+        h('div', { class: 'seal' }, '我方'),
+        h('div', { class: 'versus-name' }, '你'),
+        meRank && h('div', { class: 'muted small' }, meRank.name),
+      ),
+      h('div', { class: 'versus-vs', 'aria-label': '對戰' }, 'VS'),
+      h(
+        'div',
+        { class: 'versus-side ai' },
+        h('div', { class: 'seal' }, '敵方'),
+        h('div', { class: 'versus-name' }, '本機 AI'),
+        h('div', { class: 'muted small' }, b.setup.aiEnabled ? aiRankText : '不出手'),
+      ),
     ),
     h(
-      'p',
-      { class: 'muted' },
-      b.setup.aiEnabled
-        ? '守住己方阿斗：撐過 20 波，或讓對方阿斗先失守即勝利。對手由本機產生，不是真人配對。'
-        : '這場對局的 AI 不出手：撐過 20 波即勝利。',
+      'ul',
+      { class: 'card rules' },
+      h(
+        'li',
+        null,
+        icon('shield'),
+        b.setup.aiEnabled ? '守住己方阿斗：撐過 20 波，或讓對方阿斗先失守即勝利。' : '這場對局的 AI 不出手：撐過 20 波即勝利。',
+      ),
+      b.setup.tutorial ? h('li', null, icon('scroll'), '這是教學局：對手很弱、沒有波數上限也不出 Boss，跟著提示操作即可。') : null,
+      h('li', null, icon('stamina'), `已扣除 ${b.staminaCost} 體力。開始前取消會退還，開始後不退。`),
+      b.setup.aiEnabled ? h('li', { class: 'muted' }, icon('swords'), '對手由本機產生，不是真人配對。') : null,
     ),
-    b.setup.tutorial ? h('p', null, '這是教學局：對手很弱、沒有波數上限也不出 Boss，跟著提示操作即可。') : null,
-    h('p', { class: 'muted' }, `已扣除 ${b.staminaCost} 體力。開始前取消會退還，開始後不退。`),
     h(
       'div',
-      { class: 'actions' },
-      h('button', { class: 'primary big', disabled: view.busy, onclick: () => void app.beginBattle() }, '開　戰'),
-      h('button', { disabled: view.busy, onclick: () => void app.cancelPrepared() }, `取消並退還 ${b.staminaCost} 體力`),
+      { class: 'stack' },
+      h('button', { class: 'primary battle-btn', disabled: view.busy, onclick: () => void app.beginBattle() }, icon('swords'), h('span', { class: 'big' }, '開戰')),
+      h('button', { disabled: view.busy, onclick: () => void app.cancelPrepared() }, icon('back'), `取消並退還 ${b.staminaCost} 體力`),
     ),
   );
 }
@@ -74,35 +94,42 @@ export function renderResult(view: AppView, app: AppController): HTMLElement {
     const rank = data.ranks.ranks[pos.rankId]!;
     return pos.rankId >= 50 ? `${rank.name} ${pos.level} 星` : `${rank.name} 第 ${pos.level} 星`;
   };
+  const drops = d.drops ?? [];
+  const starDiff = d.starAfter - d.starBefore;
+  const row = (name: IconName, label: string, value: Node | string) => h('div', { class: 'reward-row' }, icon(name), h('dt', null, label), h('dd', null, value));
   return h(
     'main',
     { class: 'screen center result' },
-    h('h1', { class: `title ${win ? 'win' : 'lose'}` }, win ? '勝　利' : draft.reason === 'surrender' ? '放　棄' : '敗　北'),
-    h('p', { class: 'center-text muted' }, `${REASON_TEXT[draft.reason] ?? ''} · 到達第 ${draft.wave} 波 · 擊殺 ${draft.kills}`),
+    h('h1', { class: `result-stamp ${win ? 'win' : 'lose'}` }, win ? '勝利' : draft.reason === 'surrender' ? '放棄' : '敗北'),
+    h(
+      'div',
+      { class: 'record' },
+      h('span', { class: 'chip' }, icon('flag'), REASON_TEXT[draft.reason] ?? ''),
+      h('span', { class: 'chip' }, icon('shield'), `第 ${draft.wave} 波`),
+      h('span', { class: 'chip' }, icon('swords'), `擊殺 ${draft.kills}`),
+    ),
     h(
       'dl',
-      { class: 'result-list' },
-      h('dt', null, '金幣'),
-      h('dd', null, `+${d.goldDelta}（已入帳）`),
-      h('dt', null, '碎片'),
-      h(
-        'dd',
-        null,
-        (d.drops ?? []).length === 0
-          ? '無'
-          : Object.entries((d.drops ?? []).reduce<Record<string, number>>((m, id) => ((m[id] = (m[id] ?? 0) + 1), m), {}))
+      { class: 'card reward-list' },
+      row('coin', '金幣', h('strong', null, `+${d.goldDelta}`)),
+      row(
+        'sword',
+        '碎片',
+        drops.length === 0
+          ? h('span', { class: 'muted' }, '無')
+          : Object.entries(drops.reduce<Record<string, number>>((m, id) => ((m[id] = (m[id] ?? 0) + 1), m), {}))
               .map(([id, n]) => `${data.weapons.weapons.find((x) => x.id === Number(id))?.name ?? id} ×${n}`)
-              .join('、') + '（已入帳）',
+              .join('、'),
       ),
-      h('dt', null, '段位'),
-      h(
-        'dd',
-        null,
-        rankName(d.starBefore) === rankName(d.starAfter)
+      row(
+        'rank',
+        '段位',
+        starDiff === 0
           ? `${rankName(d.starAfter)}（未變）`
-          : `${rankName(d.starBefore)} → ${rankName(d.starAfter)}`,
+          : h('span', null, `${rankName(d.starAfter)} `, h('span', { class: starDiff > 0 ? 'up' : 'down' }, starDiff > 0 ? `▲ ${starDiff} 星` : `▼ ${-starDiff} 星`)),
       ),
     ),
-    h('button', { class: 'primary big', onclick: () => void app.backToLobby() }, '回主畫面'),
+    h('p', { class: 'center-text muted small' }, '獎勵已入帳'),
+    h('button', { class: 'primary battle-btn', onclick: () => void app.backToLobby() }, h('span', { class: 'big' }, '回主畫面')),
   );
 }

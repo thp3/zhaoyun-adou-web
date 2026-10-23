@@ -5,7 +5,7 @@ import { openGameDb } from './storage/db';
 import { BattleScreen } from './ui/battleScreen';
 import { renderInterrupted, renderOpponent, renderResult, renderSettling } from './ui/flowScreens';
 import { newPanelState, renderPanel } from './ui/metaScreens';
-import { renderLoading, renderLobby, renderRecovery, staminaHint, type UiState } from './ui/screens';
+import { closeSettings, renderLoading, renderLobby, renderRecovery, staminaHint, type UiState } from './ui/screens';
 import './ui/styles.css';
 
 const root = document.getElementById('app')!;
@@ -51,9 +51,20 @@ let battleUi: BattleScreen | null = null;
 // 開發模式除錯入口（正式建置會移除）
 if (import.meta.env.DEV) (window as unknown as { __app: AppController }).__app = app;
 
+/** 上一次畫出的畫面；換畫面時才播進場動畫，同畫面重繪（買東西、切開關）不重播 */
+let lastScreenKey = '';
+function markEnter(key: string): void {
+  if (key !== lastScreenKey) root.dataset.enter = '';
+  else delete root.dataset.enter;
+  lastScreenKey = key;
+}
+
 function render(): void {
   const v = latest;
+  // 遊戲內「減少特效」也套用到介面動畫
+  document.body.classList.toggle('reduce-motion', v.profile?.settings.reduceEffects ?? false);
   const inBattle = (v.state === 'BATTLE_RUNNING' || v.state === 'BATTLE_PAUSED') && v.session;
+  markEnter(inBattle ? 'battle' : `${v.state}:${v.state === 'LOBBY' ? (ui.panels.panel ?? '') : ''}`);
   if (inBattle) {
     // 同一場對局只建一次畫面，避免重建 canvas 中斷拖曳
     if (!battleUi || battleUi.session !== v.session) {
@@ -115,6 +126,17 @@ const pollUpdate = async () => {
   if (ui.update) render();
 };
 setInterval(() => void pollUpdate(), 10 * 60_000);
+
+// Esc：先關設定，再從面板返回主畫面
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || app.machine.state !== 'LOBBY') return;
+  if (ui.settingsOpen) closeSettings(ui, render);
+  else if (ui.panels.panel) {
+    ui.panels.panel = null;
+    ui.panels.message = null;
+    render();
+  }
+});
 
 // 關閉或重新整理分頁時讓出寫入權，新分頁不必等租約到期（不保證一定執行，所以租約另有到期時間）
 window.addEventListener('pagehide', () => void app.releaseLease());

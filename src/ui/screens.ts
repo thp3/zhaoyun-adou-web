@@ -9,6 +9,7 @@ import type { GameData } from '../data';
 import { downloadJson, formatClock, formatTime, h } from './dom';
 import { rankRewardAvailable } from '../domain/profile/shop';
 import type { Panel, PanelState } from './metaScreens';
+import { icon, inkMountains, type IconName } from './icons';
 import { VERSIONS, type BuildInfo } from '../app/version';
 
 export interface UiState {
@@ -23,11 +24,11 @@ export function renderLoading(): HTMLElement {
   return h('main', { class: 'screen center' }, h('h1', { class: 'title' }, '趙雲與阿斗'), h('p', { class: 'muted' }, '載入中…'));
 }
 
-const FEATURES: { label: string; panel: Panel }[] = [
-  { label: '武器', panel: 'weapons' },
-  { label: '商店', panel: 'shop' },
-  { label: '段位', panel: 'rank' },
-  { label: '圖鑑', panel: 'codex' },
+const FEATURES: { label: string; panel: Panel; icon: IconName }[] = [
+  { label: '武器', panel: 'weapons', icon: 'sword' },
+  { label: '商店', panel: 'shop', icon: 'shop' },
+  { label: '段位', panel: 'rank', icon: 'rank' },
+  { label: '圖鑑', panel: 'codex', icon: 'book' },
 ];
 
 export function renderLobby(view: AppView, ui: UiState, app: AppController, rerender: () => void): HTMLElement {
@@ -37,43 +38,67 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
   const today = dayKeyOf(now, data.economy.calendarZone);
   const staminaMax = data.economy.stamina.max;
   const cost = data.economy.stamina.battleCost;
+  const lacking = p.stamina.value < cost;
+
+  // 功能卡片的副標與提醒：讓玩家不點進去也知道裡面有什麼
+  const shopOpen = p.openProps || starToRank(p.rank.curStar).rankId >= data.items.shopUnlockRankId;
+  const sub: Record<Panel, string> = {
+    weapons:
+      !p.weaponFree && registerDayIndex(p, today) < data.weapons.unlockOnRegisterDay
+        ? `第 ${data.weapons.unlockOnRegisterDay} 天解鎖`
+        : `${data.generals.generals.filter((g) => p.equip[g.id]! >= 0).length} 位武將已裝備`,
+    shop: shopOpen ? `今日道具 ${p.items.length} 件` : `${data.ranks.ranks[data.items.shopUnlockRankId]!.name} 開放`,
+    rank: `每日 ${data.ranks.ranks[starToRank(p.rank.lastStar).rankId]!.reward} 金幣`,
+    codex: `已解鎖 ${p.mergedGenerals.length}/${data.generals.generals.length}`,
+  };
+  const badge: Partial<Record<Panel, string>> = {
+    ...(p.newWeaponIds.length > 0 ? { weapons: '新' } : {}),
+    ...(rankRewardAvailable(p, today) ? { rank: '可領' } : {}),
+  };
 
   const screen = h(
     'main',
     { class: 'screen lobby' },
     h(
       'header',
-      { class: 'topbar' },
-      h('div', { class: 'stat' }, h('span', { class: 'stat-label' }, '金幣'), h('strong', null, p.gold)),
+      { class: 'resbar' },
+      h('div', { class: 'res gold card', 'aria-label': `金幣 ${p.gold}` }, icon('coin'), h('strong', null, p.gold), h('span', { class: 'res-sub' }, '金幣')),
       h(
         'div',
-        { class: 'stat' },
-        h('span', { class: 'stat-label' }, '體力'),
-        h('strong', null, `${p.stamina.value}/${staminaMax}`),
-        h('span', { class: 'stat-sub', id: 'stamina-next' }, staminaHint(p, data, now)),
+        { class: 'res stamina card', 'aria-label': `體力 ${p.stamina.value}/${staminaMax}` },
+        icon('stamina'),
+        h('strong', null, `${p.stamina.value}`, h('span', { class: 'res-sub' }, ` / ${staminaMax}`)),
+        h('span', { class: 'res-sub', id: 'stamina-next' }, staminaHint(p, data, now)),
+      ),
+      h(
+        'button',
+        {
+          class: 'icon-btn',
+          'aria-label': '設定',
+          title: '設定',
+          onclick: () => {
+            ui.settingsOpen = true;
+            rerender();
+          },
+        },
+        icon('gear'),
       ),
     ),
-    rankCard(p, data),
-    h(
-      'section',
-      { class: 'record' },
-      h('span', null, `戰績 ${p.stats.win} 勝 ${p.stats.lose} 敗`),
-      h('span', null, `本日第 ${roundOfDay(p)} 局`),
-      h('span', null, `註冊第 ${registerDayIndex(p, today)} 天`),
-    ),
+    heroCard(p, data, today),
     h(
       'button',
       {
-        class: 'primary big',
-        disabled: view.busy || p.stamina.value < cost,
+        class: 'primary battle-btn',
+        disabled: view.busy || lacking,
         onclick: () => void app.startBattle(),
       },
-      '出　戰',
-      h('small', null, p.stamina.value < cost ? `體力不足（需要 ${cost}）` : `消耗 ${cost} 體力`),
+      icon('swords'),
+      h('span', { class: 'big' }, '出戰'),
+      h('small', null, lacking ? `體力不足（需要 ${cost}，${staminaHint(p, data, now)}）` : `消耗 ${cost} 體力 · 對手為本機 AI`),
     ),
     h(
       'nav',
-      { class: 'features' },
+      { class: 'features', 'aria-label': '功能' },
       ...FEATURES.map((f) =>
         h(
           'button',
@@ -86,21 +111,11 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
               rerender();
             },
           },
-          f.label,
-          f.panel === 'weapons' && p.newWeaponIds.length > 0 ? h('small', null, '有新武器') : null,
-          f.panel === 'rank' && rankRewardAvailable(p, today) ? h('small', null, '可領獎勵') : null,
+          h('span', { class: 'tile-icon' }, icon(f.icon)),
+          h('span', { class: 'tile-label' }, f.label),
+          h('span', { class: 'tile-sub' }, sub[f.panel]),
+          badge[f.panel] ? h('span', { class: 'badge' }, badge[f.panel]!) : null,
         ),
-      ),
-      h(
-        'button',
-        {
-          class: 'tile',
-          onclick: () => {
-            ui.settingsOpen = true;
-            rerender();
-          },
-        },
-        '設定',
       ),
     ),
     h(
@@ -131,7 +146,8 @@ export function staminaHint(p: Profile, data: GameData, now: number): string {
   return ms === null ? '已滿' : `${formatClock(ms)} 後 +1`;
 }
 
-function rankCard(p: Profile, data: GameData): HTMLElement {
+/** 主畫面頂部：水墨遠山上的標題、段位印章與戰績 */
+function heroCard(p: Profile, data: GameData, today: string): HTMLElement {
   const pos = starToRank(p.rank.curStar);
   const rank = data.ranks.ranks[pos.rankId]!;
   const emperor = pos.rankId >= 50;
@@ -140,9 +156,22 @@ function rankCard(p: Profile, data: GameData): HTMLElement {
     : '★'.repeat(pos.level) + '☆'.repeat(Math.max(0, data.ranks.starsPerRank - pos.level));
   return h(
     'section',
-    { class: 'rank-card' },
-    h('div', { class: 'seal' }, rank.name.split('.')[0]!.slice(0, 2)),
-    h('div', null, h('div', { class: 'rank-name' }, rank.name), h('div', { class: 'rank-stars', 'aria-label': `第 ${pos.level} 星` }, stars)),
+    { class: 'hero card' },
+    inkMountains(),
+    h('h1', { class: 'hero-title' }, '趙雲與阿斗', h('span', { class: 'seal-mini', 'aria-hidden': 'true' }, '斗')),
+    h(
+      'div',
+      { class: 'rank-line' },
+      h('div', { class: 'seal' }, rank.name.split('.')[0]!.slice(0, 2)),
+      h('div', null, h('div', { class: 'rank-name' }, rank.name), h('div', { class: 'rank-stars', 'aria-label': `第 ${pos.level} 星` }, stars)),
+    ),
+    h(
+      'div',
+      { class: 'record' },
+      h('span', { class: 'chip' }, icon('flag'), `${p.stats.win} 勝 ${p.stats.lose} 敗`),
+      h('span', { class: 'chip' }, icon('swords'), `本日第 ${roundOfDay(p)} 局`),
+      h('span', { class: 'chip' }, icon('calendar'), `第 ${registerDayIndex(p, today)} 天`),
+    ),
   );
 }
 
@@ -150,48 +179,49 @@ function noticeBar(text: string, onClose: () => void): HTMLElement {
   return h('div', { class: 'notice', role: 'status' }, h('span', null, text), h('button', { class: 'link', onclick: onClose }, '知道了'));
 }
 
+/** 開關列：整列可點，狀態同時以滑塊位置與顏色表示 */
+function settingRow(label: string, hint: string, checked: boolean, onChange: (on: boolean) => void): HTMLElement {
+  return h(
+    'label',
+    { class: 'setting' },
+    h('span', { class: 'setting-text' }, label, h('small', null, hint)),
+    h('input', { type: 'checkbox', role: 'switch', class: 'switch', checked, onchange: (e: Event) => onChange((e.target as HTMLInputElement).checked) }),
+  );
+}
+
+export function closeSettings(ui: UiState, rerender: () => void): void {
+  ui.settingsOpen = false;
+  rerender();
+}
+
 function settingsDialog(p: Profile, ui: UiState, app: AppController, rerender: () => void): HTMLElement {
-  const close = () => {
-    ui.settingsOpen = false;
-    rerender();
-  };
+  const close = () => closeSettings(ui, rerender);
   return h(
     'div',
-    { class: 'backdrop', onclick: (e: Event) => e.target === e.currentTarget && close() },
+    { class: 'backdrop sheet', onclick: (e: Event) => e.target === e.currentTarget && close() },
     h(
       'div',
       { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': '設定' },
-      h('h2', null, '設定'),
+      h('div', { class: 'dialog-head' }, h('h2', null, '設定'), h('button', { class: 'icon-btn ghost', 'aria-label': '關閉設定', onclick: close }, icon('close'))),
+      settingRow('顯示傷害數字', '對局中敵人頭上的傷害數字', p.settings.showDamageNumbers, (on) => void app.updateSettings({ showDamageNumbers: on })),
+      settingRow('減少特效', '關閉震動、晃動、粒子與介面動畫', p.settings.reduceEffects, (on) => void app.updateSettings({ reduceEffects: on })),
       h(
-        'label',
-        { class: 'row' },
-        h('input', {
-          type: 'checkbox',
-          checked: p.settings.showDamageNumbers,
-          onchange: (e: Event) => void app.updateSettings({ showDamageNumbers: (e.target as HTMLInputElement).checked }),
-        }),
-        '顯示傷害數字',
+        'section',
+        { class: 'dialog-section' },
+        h('h3', null, icon('download'), '存檔'),
+        h('p', { class: 'muted small' }, '進度只保存在這個瀏覽器。清除網站資料會一併刪除，建議定期匯出備份。'),
+        h('button', { onclick: () => void exportTo(app, 'zhaoyun-adou-save') }, icon('download'), '匯出存檔'),
       ),
       h(
-        'label',
-        { class: 'row' },
-        h('input', {
-          type: 'checkbox',
-          checked: p.settings.reduceEffects,
-          onchange: (e: Event) => void app.updateSettings({ reduceEffects: (e.target as HTMLInputElement).checked }),
-        }),
-        '減少特效（關閉震動、晃動與粒子）',
+        'section',
+        { class: 'dialog-section' },
+        h('h3', null, '版本'),
+        h(
+          'p',
+          { class: 'muted small' },
+          `程式 v${VERSIONS.app}（${VERSIONS.commit}）· 規則 ${VERSIONS.ruleset} · 存檔格式 ${VERSIONS.saveSchema} · 資料庫 ${VERSIONS.db}`,
+        ),
       ),
-      h('h3', null, '版本'),
-      h(
-        'p',
-        { class: 'muted small' },
-        `程式 v${VERSIONS.app}（${VERSIONS.commit}）· 規則 ${VERSIONS.ruleset} · 存檔格式 ${VERSIONS.saveSchema} · 資料庫 ${VERSIONS.db}`,
-      ),
-      h('h3', null, '存檔'),
-      h('p', { class: 'muted' }, '進度只保存在這個瀏覽器。清除網站資料會一併刪除，建議定期匯出備份。'),
-      h('button', { onclick: () => void exportTo(app, 'zhaoyun-adou-save') }, '匯出存檔'),
-      h('div', { class: 'dialog-actions' }, h('button', { class: 'primary', onclick: close }, '關閉')),
     ),
   );
 }
