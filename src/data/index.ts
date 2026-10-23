@@ -102,4 +102,3 @@ function crossCheck(d: GameData): string[] {
   return issues;
 }
 
-export const gameData: GameData = loadGameData();

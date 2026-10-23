@@ -1,14 +1,43 @@
-// M0 暫時入口：只驗證資料可載入並列出數量。M1 會換成應用狀態機。
-import { DataError, loadGameData } from './data';
+import { AppController, type AppView } from './app/appController';
+import { systemClock } from './domain/time/calendar';
+import { openGameDb } from './storage/db';
+import { renderLoading, renderLobby, renderRecovery, staminaHint, type UiState } from './ui/screens';
+import './ui/styles.css';
 
-const app = document.getElementById('app')!;
-try {
-  const data = loadGameData();
-  const rows = Object.entries(data.manifest.counts)
-    .map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`)
-    .join('');
-  app.innerHTML = `<h1>趙雲與阿斗</h1><p>規則版本 ${data.manifest.rulesetVersion}，資料已載入。</p><table>${rows}</table>`;
-} catch (e) {
-  const issues = e instanceof DataError ? e.issues : [String(e)];
-  app.innerHTML = `<h1>資料載入失敗</h1><pre>${issues.join('\n')}</pre>`;
+const root = document.getElementById('app')!;
+const app = new AppController({ clock: systemClock, openDb: () => openGameDb() });
+const ui: UiState = { settingsOpen: false, confirmReset: false };
+let latest: AppView = app.view;
+
+function render(): void {
+  const v = latest;
+  const screen =
+    v.state === 'LOBBY' && v.profile && v.data
+      ? renderLobby(v, ui, app, render)
+      : v.state === 'RECOVERY' && v.recovery
+        ? renderRecovery(v, ui, app, render)
+        : renderLoading();
+  root.replaceChildren(screen);
 }
+
+app.subscribe((v) => {
+  latest = v;
+  render();
+});
+
+// 只更新倒數文字，不重建畫面也不寫檔
+setInterval(() => {
+  const el = document.getElementById('stamina-next');
+  if (el && latest.profile && latest.data) el.textContent = staminaHint(latest.profile, latest.data, Date.now());
+}, 1000);
+
+// 回到前景與主畫面停留期間：補計體力、處理跨日
+const refresh = () => {
+  if (app.machine.state === 'LOBBY') void app.refreshDaily();
+};
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refresh();
+});
+setInterval(refresh, 30_000);
+
+void app.boot();

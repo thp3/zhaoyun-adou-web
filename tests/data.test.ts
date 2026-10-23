@@ -3,9 +3,9 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { gameData, loadGameData } from '../src/data';
+import { loadGameData } from '../src/data';
 
-const d = gameData;
+const d = loadGameData();
 const count = <T>(xs: T[], pred: (x: T) => boolean) => xs.filter(pred).length;
 
 describe('資料表通過 schema 與跨表檢查', () => {
