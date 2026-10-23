@@ -1,0 +1,42 @@
+# 測試 → 建置 → 部署到 GitHub Pages。目前只能手動觸發（Actions 頁面的 Run workflow）。
+# 決定公開部署後：在倉庫 Settings → Pages 把 Source 設為「GitHub Actions」，
+# 想要推到 main 自動部署，再在 on: 底下加上 push: branches: [main]。私人倉庫需付費方案才能使用 Pages。
+name: deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

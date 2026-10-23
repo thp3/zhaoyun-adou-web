@@ -211,3 +211,15 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 .rank-table th, .rank-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .rank-table tr.current td { color: var(--seal); font-weight: bold; }
 .tutorial-tip { padding: .5rem .8rem; border-left: 4px solid var(--gold); background: var(--paper-2); font-size: .95rem; }
+
+/* 手機：取消點兩下放大、保證點擊面積、避開瀏海與圓角 */
+button, .item, select, input { touch-action: manipulation; }
+button { min-height: 40px; }
+button.link { min-height: 0; }
+.screen {
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+.battle { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+html { -webkit-text-size-adjust: 100%; }

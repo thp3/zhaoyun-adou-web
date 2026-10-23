@@ -9,11 +9,14 @@ import type { GameData } from '../data';
 import { downloadJson, formatClock, formatTime, h } from './dom';
 import { rankRewardAvailable } from '../domain/profile/shop';
 import type { Panel, PanelState } from './metaScreens';
+import { VERSIONS, type BuildInfo } from '../app/version';
 
 export interface UiState {
   settingsOpen: boolean;
   confirmReset: boolean;
   panels: PanelState;
+  /** 伺服器上有較新的版本（只在主畫面提示） */
+  update: BuildInfo | null;
 }
 
 export function renderLoading(): HTMLElement {
@@ -104,9 +107,19 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
       'footer',
       { class: 'savebar muted' },
       view.lastSavedAt ? `已保存 ${formatTime(view.lastSavedAt)}` : '進度保存在此瀏覽器',
-      ` · 規則 ${data.manifest.rulesetVersion}`,
+      ` · v${VERSIONS.app}（${VERSIONS.commit}）`,
     ),
   );
+  if (ui.update) {
+    screen.prepend(
+      h(
+        'div',
+        { class: 'notice', role: 'status' },
+        h('span', null, `有新版本（${ui.update.commit}）可以更新。`),
+        h('button', { class: 'link', onclick: () => location.reload() }, '重新整理更新'),
+      ),
+    );
+  }
   if (view.notice) screen.prepend(noticeBar(view.notice, () => app.dismissNotice()));
   if (ui.settingsOpen) screen.append(settingsDialog(p, ui, app, rerender));
   return screen;
@@ -158,6 +171,12 @@ function settingsDialog(p: Profile, ui: UiState, app: AppController, rerender: (
           onchange: (e: Event) => void app.updateSettings({ showDamageNumbers: (e.target as HTMLInputElement).checked }),
         }),
         '顯示傷害數字',
+      ),
+      h('h3', null, '版本'),
+      h(
+        'p',
+        { class: 'muted small' },
+        `程式 v${VERSIONS.app}（${VERSIONS.commit}）· 規則 ${VERSIONS.ruleset} · 存檔格式 ${VERSIONS.saveSchema} · 資料庫 ${VERSIONS.db}`,
       ),
       h('h3', null, '存檔'),
       h('p', { class: 'muted' }, '進度只保存在這個瀏覽器。清除網站資料會一併刪除，建議定期匯出備份。'),

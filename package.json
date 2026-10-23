@@ -1,13 +1,13 @@
 {
   "name": "zhaoyun-adou-web",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "type": "module",
   "description": "趙雲與阿斗 1.0.9 純文字瀏覽器復刻（本機 AI 對戰）",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview",
+    "preview": "vite preview --port 4173 --strictPort",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "extract": "node tools/extract/extract.mjs"

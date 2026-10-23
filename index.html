@@ -2,11 +2,52 @@
 <html lang="zh-Hant">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#17140f" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4efe4" media="(prefers-color-scheme: light)" />
+    <meta name="description" content="趙雲與阿斗：純文字的瀏覽器塔防，與本機 AI 對戰。" />
     <title>趙雲與阿斗</title>
+    <style>
+      /* 保底畫面：主程式載入失敗時也能讀 */
+      .boot-fail { max-width: 480px; margin: 20vh auto 0; padding: 16px; font-family: system-ui, sans-serif; line-height: 1.6; }
+      .boot-fail button { font: inherit; padding: .5rem 1rem; margin-top: .5rem; }
+      @media (prefers-color-scheme: dark) { html { background: #17140f; color: #ece4d4; } }
+    </style>
   </head>
   <body>
     <div id="app">載入中…</div>
+    <noscript><div class="boot-fail"><h1>需要啟用 JavaScript</h1><p>這個遊戲在瀏覽器裡執行，請啟用 JavaScript 後重新整理。</p></div></noscript>
+    <script>
+      // 保底：主程式沒有在時限內完成第一個畫面（載入失敗、瀏覽器太舊、網路中斷）時，改顯示可讀的錯誤與重試
+      (function () {
+        var shown = false;
+        function fail(reason) {
+          if (shown || window.__zyadBooted) return;
+          shown = true;
+          var app = document.getElementById('app');
+          if (!app) return;
+          app.innerHTML =
+            '<div class="boot-fail"><h1>遊戲載入失敗</h1><p>' +
+            reason +
+            '</p><p>你的進度保存在這個瀏覽器裡，沒有被更動。</p><button type="button" onclick="location.reload()">重試</button></div>';
+        }
+        window.__zyadBootFail = fail;
+        window.addEventListener(
+          'error',
+          function (e) {
+            var t = e && e.target;
+            if (t && t.tagName === 'SCRIPT') fail('程式檔案沒有下載成功，可能是網路中斷或網站正在更新。');
+          },
+          true,
+        );
+        setTimeout(function () {
+          fail('等待太久仍未完成載入。請確認網路連線，或改用較新版本的瀏覽器（Chrome、Edge、Safari、Firefox 近兩年內的版本）。');
+        }, 15000);
+      })();
+    </script>
+    <script nomodule>
+      window.__zyadBootFail && window.__zyadBootFail('這個瀏覽器版本太舊，無法執行遊戲。請改用較新版本的瀏覽器。');
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

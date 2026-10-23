@@ -1,4 +1,5 @@
 import { AppController, type AppView } from './app/appController';
+import { checkForUpdate } from './app/version';
 import { systemClock } from './domain/time/calendar';
 import { openGameDb } from './storage/db';
 import { BattleScreen } from './ui/battleScreen';
@@ -8,6 +9,25 @@ import { renderLoading, renderLobby, renderRecovery, staminaHint, type UiState }
 import './ui/styles.css';
 
 const root = document.getElementById('app')!;
+
+/** 執行前檢查瀏覽器能力；缺少時直接說明，不進入遊戲 */
+function missingFeatures(): string[] {
+  const missing: string[] = [];
+  if (typeof indexedDB === 'undefined') missing.push('IndexedDB（本機存檔）');
+  if (typeof structuredClone !== 'function') missing.push('structuredClone（對局快照）');
+  try {
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Taipei' }).format(0);
+  } catch {
+    missing.push('時區（每日重置）');
+  }
+  return missing;
+}
+const missing = missingFeatures();
+if (missing.length > 0) {
+  (window as unknown as { __zyadBooted: boolean }).__zyadBooted = true;
+  root.innerHTML = `<div class="boot-fail"><h1>瀏覽器不支援</h1><p>缺少：${missing.join('、')}。請改用較新版本的瀏覽器；私密瀏覽模式也可能停用本機存檔。</p></div>`;
+  throw new Error(`unsupported: ${missing.join(', ')}`);
+}
 const app = new AppController({ clock: systemClock, openDb: () => openGameDb(), ownerId: tabOwnerId() });
 
 /**
@@ -25,7 +45,7 @@ function tabOwnerId(): string {
   }
   return fresh;
 }
-const ui: UiState = { settingsOpen: false, confirmReset: false, panels: newPanelState() };
+const ui: UiState = { settingsOpen: false, confirmReset: false, panels: newPanelState(), update: null };
 let latest: AppView = app.view;
 let battleUi: BattleScreen | null = null;
 // 開發模式除錯入口（正式建置會移除）
@@ -69,6 +89,8 @@ function render(): void {
 app.subscribe((v) => {
   latest = v;
   render();
+  // 已畫出第一個畫面：取消 index.html 的保底逾時
+  (window as unknown as { __zyadBooted: boolean }).__zyadBooted = true;
 });
 
 // 只更新倒數文字，不重建畫面也不寫檔
@@ -86,6 +108,14 @@ document.addEventListener('visibilitychange', () => {
 setInterval(() => {
   if (app.machine.state === 'LOBBY') void app.refreshDaily();
 }, 30_000);
+// 停在主畫面時每 10 分鐘檢查一次新版；只提示，不強制重新整理（對局中不打擾）
+const pollUpdate = async () => {
+  if (app.machine.state !== 'LOBBY' || ui.update) return;
+  ui.update = await checkForUpdate();
+  if (ui.update) render();
+};
+setInterval(() => void pollUpdate(), 10 * 60_000);
+
 // 關閉或重新整理分頁時讓出寫入權，新分頁不必等租約到期（不保證一定執行，所以租約另有到期時間）
 window.addEventListener('pagehide', () => void app.releaseLease());
 

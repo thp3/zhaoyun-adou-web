@@ -1,33 +1,68 @@
 # 趙雲與阿斗：純文字瀏覽器復刻
 
-單人對本機 AI，靜態網站加瀏覽器本機存檔，不使用任何圖片。
+依《趙雲與阿斗》1.0.9 的規則重建的瀏覽器塔防：單人對本機 AI，不使用任何圖片（全部以文字與幾何形狀繪製），進度保存在瀏覽器的 IndexedDB。
 
-## 指令
+## 玩法
+
+- 主畫面按「出戰」（消耗 5 體力，每 5 分鐘回 1，上限 30），對手是本機產生的 AI。
+- 「征兵」抽 5 張字牌，拖到己方陣地部署；同字同級疊上去合成升級；鏟子拖到「荒」地開墾。
+- 姓名字依序左右相鄰（姓在左）即合成武將，例如「趙」「雲」→ 趙雲；同字再拖上去可餵經驗。
+- 撐過 20 波，或讓對方阿斗先失守即勝利。第 3、6、9、12、15、18 波可能出 Boss。
+- 道具：點道具再點目標使用；被動道具開局自動生效。道具在主畫面「商店」購買，當日有效。
+- 武器：註冊第 3 天解鎖，對局中擊殺帶碎片（金圈）的敵人掉落碎片，集滿成為完整武器，在「武器」頁裝給同類型的武將。
+- 對局中重新整理或關閉分頁：再次開啟會回到最後保存點（每 5 秒保存）。同一份進度同時只能在一個分頁遊玩。
+
+## 開發
 
 ```bash
 npm install
-npm run dev        # 本機開發
-npm test           # 規則與資料測試
-npm run build      # 產出 dist/ 靜態網站
+npm run dev        # 本機開發（http://localhost:5173）
+npm test           # 規則、存檔、恢復、驗收與效能測試
+npm run build      # 產出 dist/ 靜態網站（相對路徑，可放在任何子路徑）
+npm run preview    # 以正式建置預覽（http://localhost:4173）
 npm run extract    # 從原版對照資料重新產生 data/（預設來源 D:/gathergame，可加 --src）
 ```
 
-## data/ 資料表（M0）
+開發模式下有除錯入口 `window.__app`，正式建置不包含。
 
-由 `tools/extract/extract.mjs` 產生，請勿手改；修正請改抽取腳本後重跑。
+## 部署
 
-| 檔案 | 內容 |
-|---|---|
-| tokens.json | 24 種字牌（固定英文 id、繁體顯示字、AI 價值） |
-| maps.json | 4 張 8×10 地圖，`kind[x][y]`：0 道路／1 可部署／2 待開墾；`camp[x][y]`：0 玩家／1 AI |
-| deck.json | 108 張初始牌庫、征兵、教程注入 |
-| units.json / generals.json | 普通兵、農民、12 武將、7 技能、經驗表 |
-| waves.json | 20 波出兵、血量策略、12 Boss |
-| ai.json | AI 決策間隔、補助、評分參數 |
-| items.json / buffs.json | 25 道具、20 buff |
-| weapons.json / ranks.json | 44 武器＋4 預設、54 段位與對手生成 |
-| economy.json | 體力、結算金幣、開局資金 |
-| legacy/constants.json | 原版常數原樣保留，僅供查證 |
-| manifest.json | 來源檔 SHA-256 與數量 |
+`dist/` 是純靜態檔案，任何靜態網站服務都能直接放：
 
-遊戲只透過 `src/data/index.ts` 取資料；啟動時用 zod 驗證，壞資料會停在錯誤頁。
+- **GitHub Pages**：`.github/workflows/deploy.yml` 會測試、建置並部署，目前只能在 Actions 頁面手動執行。使用前需在倉庫 Settings → Pages 把 Source 設為「GitHub Actions」；想改成推到 `main` 自動部署，在檔案的 `on:` 加上 `push`。私人倉庫需付費方案才能使用 Pages。
+- **其他靜態主機**（Cloudflare Pages、Netlify 等）：建置指令 `npm run build`，輸出目錄 `dist`。
+- 需要 HTTPS（或 localhost）：匯出存檔的校驗碼使用 Web Crypto。
+
+更新部署後，已開啟的頁面停在主畫面時會提示「有新版本」，不會強制重新整理；進行中的對局不受影響。
+
+## 版本
+
+四種版本分開記錄，設定頁可查看：
+
+| 版本 | 來源 | 用途 |
+|---|---|---|
+| 程式版本 | `package.json` ＋提交編號 | 顯示、新版檢查（`version.json`） |
+| 規則版本 | `data/manifest.json` 的 `rulesetVersion` | 規則不同的舊對局快照不續玩，改以放棄結算 |
+| 存檔格式 | `PROFILE_SCHEMA_VERSION` | 舊存檔逐版遷移，遷移前先備份 |
+| 資料庫結構 | `DB_VERSION` | IndexedDB 升級 |
+
+## 結構
+
+```text
+tools/extract/   原版資料抽取
+data/            規則資料表（固定 id、繁體顯示字）
+src/domain/      純規則：battle（模擬、AI、Boss、技能、武器、道具、快照）、profile（體力、段位、經濟、背包、商店）
+src/storage/     IndexedDB 交易、寫入權租約、遷移、匯出
+src/app/         應用狀態機、開局／結算流程、對局執行器、版本
+src/render/      Canvas 戰場繪製
+src/ui/          各畫面
+tests/           單元、交易、恢復、驗收與效能測試
+```
+
+## 與原版的已知差異
+
+- 動畫時長、彈速、擊退手感以固定時間軸重建，屬待校正數值。
+- 碎片在結算時一次入帳，只算玩家防區（原版掉落即入帳且勝利會再加一次）。
+- 未開始的對局可取消並退還體力；對局中斷後可從快照續玩。
+- 輪盤需要廣告服務才能轉，本版未接，入口不開放。
+- 少數看起來是原版缺陷的行為未重現，例如控制狀態旗標不計數、小人劍虛弱後永久壓住技能。

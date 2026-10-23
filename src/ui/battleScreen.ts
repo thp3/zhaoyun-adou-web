@@ -216,7 +216,7 @@ export class BattleScreen {
         it.cd > 0 && h('small', null, `${secs}s`),
       );
     });
-    this.itemBar.replaceChildren(...(buttons.length ? buttons : [h('span', { class: 'muted' }, '沒有道具（商店於 M5 開放）')]));
+    this.itemBar.replaceChildren(...(buttons.length ? buttons : [h('span', { class: 'muted' }, '沒有道具（可在主畫面的商店購買，當日有效）')]));
     const ai = w.items[1].map((i) => data.items.items[i.itemId]!.name);
     this.aiItems.textContent = ai.length ? `對方道具：${ai.join('、')}` : '';
   }
@@ -244,7 +244,9 @@ export class BattleScreen {
     const secs = (ms: number) => Math.max(0, Math.ceil((ms - s.timer * 20) / 1000));
     const waveText =
       s.phase === 'ready'
-        ? `準備中 ${secs(data.waves.initialDelayMs)} 秒（征兵後提前開戰）`
+        ? w.tutorial
+          ? '教學中：照提示操作後開始出兵'
+          : `準備中 ${secs(data.waves.initialDelayMs)} 秒（征兵後提前開戰）`
         : s.phase === 'spawning'
           ? `第 ${s.wave}/${data.waves.waveCount} 波 · 出兵 ${s.spawned}/${data.waves.spawnCountByWave[s.wave - 1]}`
           : s.phase === 'intermission'
