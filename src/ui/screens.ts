@@ -57,9 +57,13 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
     ),
     h(
       'button',
-      { class: 'primary big', disabled: true, title: '對局於 M2 開放' },
+      {
+        class: 'primary big',
+        disabled: view.busy || p.stamina.value < cost,
+        onclick: () => void app.startBattle(),
+      },
       '出　戰',
-      h('small', null, `消耗 ${cost} 體力 · 對局於 M2 開放`),
+      h('small', null, p.stamina.value < cost ? `體力不足（需要 ${cost}）` : `消耗 ${cost} 體力`),
     ),
     h(
       'nav',
@@ -168,6 +172,10 @@ const RECOVERY_TEXT: Record<RecoveryReason['kind'], { title: string; body: strin
     body: '這份存檔是由較新版本的遊戲建立，目前版本無法安全讀取。請更新頁面後再試，存檔沒有被更動。',
   },
   'write-failed': { title: '寫入存檔失敗', body: '沒有保存成功，請確認瀏覽器儲存空間後重試。' },
+  'settle-failed': {
+    title: '結算尚未保存',
+    body: '對局結果已凍結，但寫入存檔失敗，獎勵尚未入帳。按「重試」會完成同一筆結算，不會重複發獎。',
+  },
 };
 
 export function renderRecovery(view: AppView, ui: UiState, app: AppController, rerender: () => void): HTMLElement {

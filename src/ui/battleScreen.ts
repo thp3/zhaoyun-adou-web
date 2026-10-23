@@ -1,0 +1,275 @@
+// 對局畫面：HUD、Canvas、拖曳輸入、暫停選單。同一場對局只建一次，狀態變化時呼叫 sync()。
+import type { AppController, AppView } from '../app/appController';
+import type { BattleSession } from '../app/battleSession';
+import { previewMove } from '../domain/battle/commands';
+import { CELL, type BattleEvent, type BoardLoc, type SlotLoc } from '../domain/battle/types';
+import {
+  BAR_H,
+  BOARD_H,
+  BOARD_W,
+  VIEW_H,
+  drawBattle,
+  readPalette,
+  slotRect,
+  type DragState,
+  type Effect,
+  type Palette,
+} from '../render/battleCanvas';
+import { h } from './dom';
+
+const EFFECT_TTL = 800;
+
+export class BattleScreen {
+  readonly root: HTMLElement;
+  private readonly canvas: HTMLCanvasElement;
+  private readonly ctx2d: CanvasRenderingContext2D;
+  private readonly hud = {
+    wave: h('span', { class: 'hud-wave' }),
+    lives: h('span', { class: 'hud-lives' }),
+    gold: h('strong', { class: 'hud-gold' }),
+    recruit: h('button', { class: 'primary' }),
+  };
+  private readonly toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite' });
+  private readonly overlay = h('div', { class: 'backdrop', hidden: true });
+  private effects: Effect[] = [];
+  private drag: DragState | null = null;
+  private palette: Palette;
+  private rafId = 0;
+  private toastTimer = 0;
+  private confirmSurrender = false;
+  private readonly offEvents: () => void;
+  private view: AppView;
+
+  constructor(
+    readonly session: BattleSession,
+    private readonly app: AppController,
+    view: AppView,
+  ) {
+    this.view = view;
+    this.canvas = h('canvas', { class: 'battle-canvas', 'aria-label': '戰場' });
+    this.ctx2d = this.canvas.getContext('2d')!;
+    this.hud.recruit.addEventListener('click', () => session.enqueue({ type: 'RECRUIT', side: 0 }));
+    this.root = h(
+      'main',
+      { class: 'screen battle' },
+      h(
+        'header',
+        { class: 'hud' },
+        h('div', { class: 'hud-line' }, this.hud.wave, this.hud.lives),
+        h(
+          'div',
+          { class: 'hud-line' },
+          h('span', null, '資金 ', this.hud.gold),
+          h('span', { class: 'hud-actions' }, this.hud.recruit, h('button', { onclick: () => app.pause('USER') }, '暫停')),
+        ),
+      ),
+      h('div', { class: 'canvas-wrap' }, this.canvas, this.toast),
+      this.overlay,
+    );
+    this.palette = readPalette(document.documentElement);
+    this.bindInput();
+    this.offEvents = app.onBattleEvents((evs) => this.onEvents(evs));
+    window.addEventListener('resize', this.resize);
+    matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.repaint);
+    const loop = () => {
+      this.draw();
+      this.rafId = requestAnimationFrame(loop);
+    };
+    this.rafId = requestAnimationFrame(loop);
+    queueMicrotask(this.resize);
+    this.sync(view);
+  }
+
+  destroy(): void {
+    cancelAnimationFrame(this.rafId);
+    clearTimeout(this.toastTimer);
+    this.offEvents();
+    window.removeEventListener('resize', this.resize);
+    matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', this.repaint);
+  }
+
+  /** 狀態變化（暫停／繼續）時更新覆蓋層 */
+  sync(view: AppView): void {
+    this.view = view;
+    const paused = view.state === 'BATTLE_PAUSED';
+    if (paused) this.cancelDrag();
+    this.overlay.hidden = !paused;
+    if (paused) this.overlay.replaceChildren(this.pauseDialog());
+    else this.confirmSurrender = false;
+  }
+
+  private repaint = () => {
+    this.palette = readPalette(document.documentElement);
+  };
+
+  private resize = () => {
+    const cssW = this.canvas.clientWidth || BOARD_W;
+    const dpr = Math.min(3, window.devicePixelRatio || 1);
+    this.canvas.width = Math.round(cssW * dpr);
+    this.canvas.height = Math.round(((cssW * VIEW_H) / BOARD_W) * dpr);
+    this.repaint();
+  };
+
+  private pauseDialog(): HTMLElement {
+    const wave = this.session.world.wave.wave;
+    const early = wave < this.view.data!.economy.battleReward.earlySurrenderWave;
+    const hidden = this.session.pauseReasons.has('PAGE_HIDDEN');
+    return h(
+      'div',
+      { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': '已暫停' },
+      h('h2', null, '已暫停'),
+      h('p', { class: 'muted' }, hidden ? '切換分頁時戰鬥會自動暫停，不會在背景繼續。' : '戰鬥計時與出兵都已停止。'),
+      this.confirmSurrender
+        ? h(
+            'div',
+            null,
+            h('p', null, `放棄會以敗北結算。${early ? `第 ${this.view.data!.economy.battleReward.earlySurrenderWave} 波前放棄不給金幣。` : '可得敗北金幣。'}`),
+            h(
+              'div',
+              { class: 'actions' },
+              h('button', { class: 'danger', onclick: () => this.app.surrender() }, '確定放棄'),
+              h('button', { onclick: () => ((this.confirmSurrender = false), this.sync(this.view)) }, '返回'),
+            ),
+          )
+        : h(
+            'div',
+            { class: 'actions' },
+            h('button', { class: 'primary', onclick: () => this.app.resume() }, '繼續'),
+            h('button', { class: 'danger', onclick: () => ((this.confirmSurrender = true), this.sync(this.view)) }, '放棄…'),
+          ),
+    );
+  }
+
+  private onEvents(events: BattleEvent[]): void {
+    const now = performance.now();
+    for (const ev of events) {
+      if (ev.type === 'rejected' && ev.side === 0) this.showToast(ev.reason);
+      else if (ev.type === 'waveStart') this.showToast(`第 ${ev.wave} 波`);
+      else if (ev.type === 'adouHit' && ev.side === 0) this.showToast(`阿斗受傷！剩 ${Math.max(0, ev.lives)} 命`);
+      else if (ev.type === 'attack' || ev.type === 'damage' || ev.type === 'enemyDied') this.effects.push({ ev, born: now });
+    }
+  }
+
+  private showToast(text: string): void {
+    this.toast.textContent = text;
+    this.toast.classList.add('show');
+    clearTimeout(this.toastTimer);
+    this.toastTimer = window.setTimeout(() => this.toast.classList.remove('show'), 1500);
+  }
+
+  private updateHud(): void {
+    const w = this.session.world;
+    const data = this.view.data!;
+    const s = w.wave;
+    const secs = (ms: number) => Math.max(0, Math.ceil((ms - s.timer * 20) / 1000));
+    const waveText =
+      s.phase === 'ready'
+        ? `準備中 ${secs(data.waves.initialDelayMs)} 秒（征兵後提前開戰）`
+        : s.phase === 'spawning'
+          ? `第 ${s.wave}/${data.waves.waveCount} 波 · 出兵 ${s.spawned}/${data.waves.spawnCountByWave[s.wave - 1]}`
+          : s.phase === 'intermission'
+            ? `第 ${s.wave}/${data.waves.waveCount} 波 · 休息 ${secs(data.waves.intermissionMs)} 秒`
+            : '最後一波結束';
+    setText(this.hud.wave, waveText);
+    setText(this.hud.lives, `阿斗 ${'♥'.repeat(Math.max(0, w.camps[0].lives))}${w.camps[0].lives <= 0 ? '—' : ''}`);
+    setText(this.hud.gold, String(Math.floor(w.camps[0].gold)));
+    const cost = w.camps[0].recruitCost;
+    setText(this.hud.recruit, `征兵 ${cost}`);
+    this.hud.recruit.disabled = w.camps[0].gold < cost || this.view.state !== 'BATTLE_RUNNING';
+  }
+
+  private draw(): void {
+    const now = performance.now();
+    this.effects = this.effects.filter((e) => now - e.born < EFFECT_TTL);
+    const scale = this.canvas.width / BOARD_W;
+    const ctx = this.ctx2d;
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    drawBattle(ctx, this.session.world, {
+      data: this.view.data!,
+      palette: this.palette,
+      now,
+      effects: this.effects,
+      drag: this.drag,
+      showDamage: this.view.profile?.settings.showDamageNumbers ?? true,
+    });
+    this.updateHud();
+  }
+
+  // ---------- 輸入：畫布像素 → 世界座標 → 命令 ----------
+
+  private toWorld(e: PointerEvent): { x: number; y: number } {
+    const r = this.canvas.getBoundingClientRect();
+    const k = BOARD_W / r.width;
+    return { x: (e.clientX - r.left) * k, y: (e.clientY - r.top) * k };
+  }
+
+  private locAt(x: number, y: number): BoardLoc | SlotLoc | null {
+    if (y < BOARD_H) {
+      if (x < 0 || x >= BOARD_W || y < 0) return null;
+      return { c: 'board', x: Math.floor(x / CELL), y: Math.floor(y / CELL) };
+    }
+    if (y > BOARD_H + BAR_H) return null;
+    for (let i = 0; i < 5; i++) {
+      const r = slotRect(i);
+      if (x >= r.x - 10 && x <= r.x + r.w + 10) return { c: 'slot', i };
+    }
+    return null;
+  }
+
+  private actorAt(loc: BoardLoc | SlotLoc): number | null {
+    const w = this.session.world;
+    const id = loc.c === 'board' ? w.board[loc.x]?.[loc.y] : w.camps[0].slots[loc.i];
+    if (id == null) return null;
+    const a = w.actors[id];
+    return a && a.side === 0 && a.loc.c !== 'incoming' ? id : null;
+  }
+
+  private bindInput(): void {
+    const c = this.canvas;
+    c.addEventListener('pointerdown', (e) => {
+      if (this.view.state !== 'BATTLE_RUNNING' || this.drag || !e.isPrimary) return;
+      const p = this.toWorld(e);
+      const loc = this.locAt(p.x, p.y);
+      const id = loc ? this.actorAt(loc) : null;
+      if (id === null) return;
+      c.setPointerCapture(e.pointerId);
+      this.drag = { actorId: id, x: p.x, y: p.y, hover: null };
+      e.preventDefault();
+    });
+    c.addEventListener('pointermove', (e) => {
+      if (!this.drag || !e.isPrimary) return;
+      const p = this.toWorld(e);
+      this.drag.x = p.x;
+      this.drag.y = p.y;
+      const loc = this.locAt(p.x, p.y);
+      if (!loc) this.drag.hover = null;
+      else {
+        const ok = previewMove(this.session.world, 0, this.drag.actorId, loc).ok;
+        this.drag.hover = { ...loc, ok } as DragState['hover'];
+      }
+    });
+    c.addEventListener('pointerup', (e) => {
+      if (!this.drag || !e.isPrimary) return;
+      const p = this.toWorld(e);
+      const loc = this.locAt(p.x, p.y);
+      const id = this.drag.actorId;
+      this.drag = null;
+      if (!loc) return;
+      const w = this.session.world;
+      const cur = w.actors[id]?.loc;
+      const same = cur && cur.c === loc.c && (loc.c === 'board' ? cur.c === 'board' && cur.x === loc.x && cur.y === loc.y : cur.c === 'slot' && cur.i === loc.i);
+      if (!same) this.session.enqueue({ type: 'MOVE', side: 0, actorId: id, to: loc });
+    });
+    c.addEventListener('pointercancel', () => this.cancelDrag());
+    c.addEventListener('lostpointercapture', () => this.cancelDrag());
+    window.addEventListener('blur', () => this.cancelDrag());
+  }
+
+  private cancelDrag(): void {
+    this.drag = null;
+  }
+}
+
+function setText(el: HTMLElement, text: string): void {
+  if (el.textContent !== text) el.textContent = text;
+}

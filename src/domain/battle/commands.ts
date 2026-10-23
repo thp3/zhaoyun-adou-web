@@ -1,0 +1,182 @@
+// 玩家與 AI 共用的命令入口：validate → apply。命令只表達「想做什麼」，結果由規則決定。
+import { allocId, schedule } from './create';
+import { nextInt } from './rng';
+import {
+  ticks,
+  type Actor,
+  type ActorKind,
+  type BattleCommand,
+  type BoardLoc,
+  type Loc,
+  type Side,
+  type SlotLoc,
+  type StepContext,
+  type World,
+} from './types';
+
+export type CommandResult = { ok: true } | { ok: false; reason: string };
+const ok = { ok: true } as const;
+const no = (reason: string): CommandResult => ({ ok: false, reason });
+
+const SOLDIER_TOKENS = new Set(['blade', 'bow', 'spear', 'cavalry']);
+/** 與 data/units.json soldierMaxLevel 相同（schema 固定為 5） */
+const SOLDIER_MAX_LEVEL = 5;
+const kindOfToken = (token: string): ActorKind =>
+  SOLDIER_TOKENS.has(token) ? 'soldier' : token === 'shovel' ? 'shovel' : 'name';
+
+/** 抽一張：均勻選條目；兵／鏟／農不移除，名字字移除；牌庫空回退刀。 */
+export function drawToken(w: World, side: Side, ctx: StepContext): string {
+  const deck = w.camps[side].deck;
+  if (deck.length === 0) return ctx.data.deck.emptyFallback;
+  const i = nextInt(w.rng, 'deck', deck.length);
+  const token = deck[i]!;
+  if (!ctx.data.deck.nonConsumable.includes(token)) deck.splice(i, 1);
+  return token;
+}
+
+export function applyCommand(w: World, cmd: BattleCommand, ctx: StepContext): CommandResult {
+  if (w.result) return no('對局已結束');
+  const res = cmd.type === 'RECRUIT' ? recruit(w, cmd.side, ctx) : move(w, cmd.side, cmd.actorId, cmd.to, ctx);
+  if (!res.ok) ctx.events.push({ type: 'rejected', side: cmd.side, reason: res.reason });
+  return res;
+}
+
+// ---------- 征兵 ----------
+
+function recruit(w: World, side: Side, ctx: StepContext): CommandResult {
+  const camp = w.camps[side];
+  const rules = ctx.data.deck.recruit;
+  if (w.tick - camp.lastRecruitTick < ticks(rules.refreshLockMs)) return no('征兵太頻繁');
+  if (camp.gold < camp.recruitCost) return no(`資金不足（需要 ${camp.recruitCost}）`);
+  camp.gold -= camp.recruitCost;
+  camp.recruitCost += rules.costIncrement;
+  camp.lastRecruitTick = w.tick;
+  // 清掉舊刷新欄（含飛行中的）
+  camp.slots.forEach((id, i) => {
+    if (id !== null) delete w.actors[id];
+    camp.slots[i] = null;
+  });
+  for (let i = 0; i < rules.slots; i++) {
+    const token = drawToken(w, side, ctx);
+    const id = allocId(w);
+    const actor: Actor = { id, side, token, kind: kindOfToken(token), level: 1, loc: { c: 'incoming', i }, cooldown: 0 };
+    w.actors[id] = actor;
+    camp.slots[i] = id;
+    // 玩家：每張錯開 100ms、飛行 500ms 後落位；AI 直接到位
+    const delay = side === 0 ? rules.playerFlyMs + rules.playerStaggerMs * i : 0;
+    schedule(w, ticks(delay), { kind: 'enterSlot', actorId: id });
+  }
+  ctx.events.push({ type: 'recruited', side });
+  return ok;
+}
+
+// ---------- 移動／交換／合成／開墾 ----------
+
+function cellOk(w: World, a: Actor, to: BoardLoc): string | null {
+  if (to.x < 0 || to.y < 0 || to.x >= w.kind.length || to.y >= w.kind[0]!.length) return '超出地圖';
+  if (w.camp[to.x]![to.y] !== a.side) return '只能放在己方陣地';
+  const k = w.kind[to.x]![to.y];
+  if (a.kind === 'shovel') return k === 2 ? null : '鏟子只能用在待開墾地';
+  if (k === 2) return '這塊地還沒開墾';
+  if (k !== 1) return '道路上不能部署';
+  return null;
+}
+
+/** 某 actor 放到某位置是否合法（不考慮該位置上現有的 actor） */
+function placeOk(w: World, a: Actor, to: Loc): string | null {
+  if (to.c === 'incoming') return '欄位正在征兵';
+  if (to.c === 'slot') return to.i >= 0 && to.i < w.camps[a.side].slots.length ? null : '無效欄位';
+  return cellOk(w, a, to);
+}
+
+function occupant(w: World, side: Side, to: BoardLoc | SlotLoc): number | null {
+  return to.c === 'board' ? (w.board[to.x]?.[to.y] ?? null) : (w.camps[side].slots[to.i] ?? null);
+}
+
+function setLoc(w: World, a: Actor, to: Loc): void {
+  if (to.c === 'board') w.board[to.x]![to.y] = a.id;
+  else if (to.c === 'slot') w.camps[a.side].slots[to.i] = a.id;
+  a.loc = to;
+}
+
+function clearLoc(w: World, a: Actor): void {
+  const l = a.loc;
+  if (l.c === 'board' && w.board[l.x]![l.y] === a.id) w.board[l.x]![l.y] = null;
+  else if ((l.c === 'slot' || l.c === 'incoming') && w.camps[a.side].slots[l.i] === a.id) w.camps[a.side].slots[l.i] = null;
+}
+
+export function removeActor(w: World, a: Actor): void {
+  clearLoc(w, a);
+  delete w.actors[a.id];
+}
+
+/** 不改 World 的預檢，給 UI 標示合法落點；最終仍以 applyCommand 為準。 */
+export function previewMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc): CommandResult {
+  return checkMove(w, side, actorId, to).result;
+}
+
+type MovePlan =
+  | { result: CommandResult & { ok: false } }
+  | { result: typeof ok; plan: 'move' | 'merge' | 'swap' | 'expand'; actor: Actor; other: Actor | null };
+
+function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc): MovePlan {
+  const a = w.actors[actorId];
+  if (!a) return { result: { ok: false, reason: '單位已不存在' } };
+  if (a.side !== side) return { result: { ok: false, reason: '不是己方單位' } };
+  if (a.loc.c === 'incoming') return { result: { ok: false, reason: '單位還在路上' } };
+  const from = a.loc;
+  if (from.c === to.c && (from.c === 'board' ? from.x === (to as BoardLoc).x && from.y === (to as BoardLoc).y : from.i === (to as SlotLoc).i)) {
+    return { result: { ok: false, reason: '位置沒有改變' } };
+  }
+  const err = placeOk(w, a, to);
+  if (err) return { result: { ok: false, reason: err } };
+  const otherId = occupant(w, side, to);
+  if (otherId === null) {
+    return { result: ok, plan: a.kind === 'shovel' && to.c === 'board' ? 'expand' : 'move', actor: a, other: null };
+  }
+  const b = w.actors[otherId];
+  if (!b) return { result: { ok: false, reason: '目標不存在' } };
+  if (b.loc.c === 'incoming') return { result: { ok: false, reason: '欄位正在征兵' } };
+  if (a.kind === 'shovel' && to.c === 'board') return { result: { ok: false, reason: '這塊地上已有單位' } };
+  if (a.kind === 'soldier' && b.kind === 'soldier' && a.token === b.token) {
+    if (a.level !== b.level) return { result: { ok: false, reason: '等級不同不能合成' } };
+    if (b.level >= SOLDIER_MAX_LEVEL) return { result: { ok: false, reason: '已達最高等級' } };
+    return { result: ok, plan: 'merge', actor: a, other: b };
+  }
+  // 交換：對方也必須能放到我原本的位置
+  const backErr = placeOk(w, b, from);
+  if (backErr) return { result: { ok: false, reason: `無法交換：${backErr}` } };
+  return { result: ok, plan: 'swap', actor: a, other: b };
+}
+
+function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx: StepContext): CommandResult {
+  const c = checkMove(w, side, actorId, to);
+  if (!c.result.ok) return c.result;
+  const { plan, actor: a, other: b } = c as Extract<MovePlan, { plan: string }>;
+  const from = a.loc;
+  switch (plan) {
+    case 'move':
+      clearLoc(w, a);
+      setLoc(w, a, to);
+      break;
+    case 'expand': {
+      const t = to as BoardLoc;
+      w.kind[t.x]![t.y] = 1;
+      removeActor(w, a);
+      ctx.events.push({ type: 'expanded', x: t.x, y: t.y });
+      break;
+    }
+    case 'merge':
+      removeActor(w, a);
+      b!.level += 1;
+      ctx.events.push({ type: 'merged', actorId: b!.id, level: b!.level });
+      break;
+    case 'swap':
+      clearLoc(w, a);
+      clearLoc(w, b!);
+      setLoc(w, a, to);
+      setLoc(w, b!, from);
+      break;
+  }
+  return ok;
+}
