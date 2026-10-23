@@ -21,6 +21,9 @@ export interface Palette {
   road: string;
   deployOwn: string;
   deployAi: string;
+  /** 陣營色：我方藍、對方紅，用於領地底色與交界線 */
+  campOwn: string;
+  campAi: string;
   expand: string;
   ok: string;
   bad: string;
@@ -43,6 +46,8 @@ export function readPalette(el: Element): Palette {
     road: v('--road'),
     deployOwn: v('--deploy-own'),
     deployAi: v('--deploy-ai'),
+    campOwn: v('--camp-own'),
+    campAi: v('--camp-ai'),
     expand: v('--expand'),
     ok: v('--ok'),
     bad: v('--danger'),
@@ -67,6 +72,8 @@ export interface DragState {
   actorId: number;
   x: number;
   y: number;
+  /** 繪製邊長；未指定為拖曳中的 68 */
+  size?: number;
   /** 目前懸停的落點與是否合法 */
   hover: { c: 'board'; x: number; y: number; ok: boolean } | { c: 'slot'; i: number; ok: boolean } | null;
 }
@@ -77,7 +84,15 @@ export interface DrawOptions {
   now: number;
   effects: Effect[];
   drag: DragState | null;
+  /** 點選中的單位：外框與射程圈 */
+  selected?: Selection | null;
   showDamage: boolean;
+}
+
+export interface Selection {
+  side: 0 | 1;
+  range: { x: number; y: number; r: number } | null;
+  cells: { x: number; y: number; w: number }[];
 }
 
 const SERIF = "'Noto Serif TC','Songti TC','PMingLiU',serif";
@@ -91,6 +106,7 @@ export function drawBattle(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
   ctx.fillStyle = P.paper;
   ctx.fillRect(0, 0, BOARD_W, VIEW_H);
   drawGrid(ctx, w, o);
+  drawCampBorder(ctx, w, o);
   drawLaneMarks(ctx, w, o);
 
   for (const a of Object.values(w.actors)) {
@@ -98,6 +114,7 @@ export function drawBattle(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
     if (a.loc.c === 'board') drawActor(ctx, a, a.loc.x * CELL + 6, a.loc.y * CELL + 6, CELL - 12, o, 1);
   }
   for (const g of Object.values(w.generals)) drawGeneral(ctx, w, g, o);
+  if (o.selected) drawSelection(ctx, o.selected, o);
   for (const a of Object.values(w.actors)) if (a.loc.c === 'board' && o.drag?.actorId !== a.id) drawUnitStatus(ctx, w, a, o);
   for (const e of Object.values(w.enemies)) drawEnemy(ctx, w, e, o);
   drawSkillEntities(ctx, w, o);
@@ -117,7 +134,9 @@ export function drawBattle(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
 
   if (o.drag) {
     const a = w.actors[o.drag.actorId];
-    if (a) drawActor(ctx, a, o.drag.x - 34, o.drag.y - 34, 68, o, 0.9);
+    const size = o.drag.size ?? 68;
+    // 已放開等待套用（有 size）時照正式樣子畫，不再半透明
+    if (a) drawActor(ctx, a, o.drag.x - size / 2, o.drag.y - size / 2, size, o, o.drag.size ? 1 : 0.9);
   }
 }
 
@@ -131,6 +150,11 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: World, o: DrawOptions): void
       const py = y * CELL;
       ctx.fillStyle = k === 0 ? P.road : k === 1 ? (own ? P.deployOwn : P.deployAi) : P.expand;
       ctx.fillRect(px, py, CELL, CELL);
+      // 領地底色：整個陣營（含道路、荒地）都染上陣營色
+      ctx.globalAlpha = CAMP_TINT;
+      ctx.fillStyle = own ? P.campOwn : P.campAi;
+      ctx.fillRect(px, py, CELL, CELL);
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = P.line;
       ctx.lineWidth = 1;
       ctx.strokeRect(px + 0.5, py + 0.5, CELL - 1, CELL - 1);
@@ -153,6 +177,44 @@ function drawGrid(ctx: CanvasRenderingContext2D, w: World, o: DrawOptions): void
   }
 }
 
+const CAMP_TINT = 0.13;
+const BORDER_W = 4;
+
+/** 雙方交界：沿陣營不同的格邊畫雙色線，靠我方一側藍、靠對方一側紅 */
+function drawCampBorder(ctx: CanvasRenderingContext2D, w: World, o: DrawOptions): void {
+  const P = o.palette;
+  const color = (side: number | undefined) => (side === 0 ? P.campOwn : P.campAi);
+  const half = BORDER_W / 2;
+  ctx.lineWidth = BORDER_W;
+  ctx.lineCap = 'square';
+  for (let x = 0; x < w.camp.length; x++) {
+    for (let y = 0; y < w.camp[x]!.length; y++) {
+      const a = w.camp[x]![y];
+      const right = w.camp[x + 1]?.[y];
+      if (right !== undefined && right !== a) {
+        const ex = (x + 1) * CELL;
+        line(ctx, ex - half, y * CELL, ex - half, (y + 1) * CELL, color(a));
+        line(ctx, ex + half, y * CELL, ex + half, (y + 1) * CELL, color(right));
+      }
+      const below = w.camp[x]![y + 1];
+      if (below !== undefined && below !== a) {
+        const ey = (y + 1) * CELL;
+        line(ctx, x * CELL, ey - half, (x + 1) * CELL, ey - half, color(a));
+        line(ctx, x * CELL, ey + half, (x + 1) * CELL, ey + half, color(below));
+      }
+    }
+  }
+  ctx.lineCap = 'butt';
+}
+
+function line(ctx: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number, color: string): void {
+  ctx.strokeStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
 function drawLaneMarks(ctx: CanvasRenderingContext2D, w: World, o: DrawOptions): void {
   const P = o.palette;
   for (const side of [0, 1] as const) {
@@ -165,7 +227,7 @@ function drawLaneMarks(ctx: CanvasRenderingContext2D, w: World, o: DrawOptions):
     ctx.fillStyle = P.ink2;
     ctx.fillText('入', start.x, start.y);
     // 阿斗
-    ctx.fillStyle = side === 0 ? P.seal : P.ink2;
+    ctx.fillStyle = side === 0 ? P.campOwn : P.campAi;
     roundRect(ctx, end.x - 26, end.y - 26, 52, 52, 8);
     ctx.fill();
     ctx.fillStyle = P.sealInk;
@@ -209,6 +271,31 @@ function drawActor(ctx: CanvasRenderingContext2D, a: Actor, x: number, y: number
     }
   }
   ctx.globalAlpha = 1;
+}
+
+/** 選取：射程圈（淡色填滿＋虛線）與格子外框 */
+function drawSelection(ctx: CanvasRenderingContext2D, sel: Selection, o: DrawOptions): void {
+  const P = o.palette;
+  const color = sel.side === 0 ? P.gold : P.bad;
+  if (sel.range) {
+    ctx.beginPath();
+    ctx.arc(sel.range.x, sel.range.y, sel.range.r, 0, Math.PI * 2);
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([8, 6]);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3;
+  for (const c of sel.cells) {
+    roundRect(ctx, c.x * CELL + 1, c.y * CELL + 1, c.w * CELL - 2, CELL - 2, 12);
+    ctx.stroke();
+  }
 }
 
 /** 已成形武將：在組成字外框一個跨格的印框，標名字與等級 */

@@ -14,6 +14,8 @@
   --road: #d8c9a8;
   --deploy-own: #f0e9da;
   --deploy-ai: #e4dccb;
+  --camp-own: #2a66a8;
+  --camp-ai: #b3261e;
   --expand: #c9bea6;
   --u-blade: #a8432f;
   --u-bow: #3f7a3a;
@@ -43,6 +45,8 @@
     --road: #1d1913;
     --deploy-own: #3d3428;
     --deploy-ai: #2e271e;
+    --camp-own: #5b9be0;
+    --camp-ai: #e0574b;
     --expand: #25201a;
     --u-blade: #b9533d;
     --u-bow: #4f8d48;
@@ -223,3 +227,14 @@ button.link { min-height: 0; }
 }
 .battle { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
 html { -webkit-text-size-adjust: 100%; }
+
+/* 對局中點選單位的資訊 */
+.unit-info { padding: .5rem .8rem; border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: var(--radius); background: var(--paper-2); }
+.unit-info.enemy { border-left-color: var(--danger); }
+.unit-info-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.unit-info h2 { margin: 0; font-size: 1.05rem; font-family: var(--font-serif); }
+.unit-info-close { padding: .1rem .6rem; font-size: 1.1rem; line-height: 1.2; }
+.unit-info dl { display: grid; grid-template-columns: auto 1fr; gap: .15rem .9rem; margin: .4rem 0 0; font-size: .92rem; }
+.unit-info dt { color: var(--ink-2); }
+.unit-info dd { margin: 0; font-variant-numeric: tabular-nums; }
+.unit-info p { margin: .35rem 0 0; }

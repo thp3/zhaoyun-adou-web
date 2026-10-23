@@ -1,6 +1,7 @@
 // 攻擊：普通兵與武將共用同一套延遲出手與命中。四種出手延遲依原版動畫時序（刀 500ms 命中、弓 650ms 放箭、
 // 槍 480ms 刺出、騎／劍 150ms 掃掠），改由模擬排程決定；延遲與彈速屬待校正數值。
 // 武將依武器類型出手（弓→箭、槍→刺、刀→砍、劍→掃）；具名技能與武器特效於 M4 加入。
+import type { GameData } from '../../data';
 import { BUFF, applyBuff, attackSpeedBonus, statBonus, unitDisabled, unitSuppressed } from './buffs';
 import { allocId, schedule } from './create';
 import { damageEnemy, remainingDistance } from './enemies';
@@ -46,19 +47,23 @@ export interface Attacker {
   style: Style;
 }
 
-function soldierAttacker(w: World, a: Actor, ctx: StepContext): Attacker | null {
-  const at = actorCenter(a);
-  if (!at) return null;
-  const s = ctx.data.units.soldiers.find((x) => x.id === a.token)!;
+/** 攻擊數值（不含位置）：普通兵；對局內點選單位的資訊面板也用這裡，確保顯示值與實際出手一致 */
+export interface AttackNumbers {
+  damage: number;
+  range: number;
+  intervalTicks: number;
+  targetRule: string;
+  style: Style;
+}
+
+export function soldierNumbers(w: World, a: Actor, data: GameData): AttackNumbers {
+  const s = data.units.soldiers.find((x) => x.id === a.token)!;
   // 壓制／魅惑期間暫降為 1 級
   const level = unitSuppressed(w, a.id) ? 1 : a.level;
-  const mult = ctx.data.units.soldierLevelMultiplier[level - 1] ?? 1;
+  const mult = data.units.soldierLevelMultiplier[level - 1] ?? 1;
   const aiMult = a.side === 1 ? w.aiDamageMultiplier : 1;
   const base = s.damage * mult;
   return {
-    src: { kind: 'actor', id: a.id },
-    side: a.side,
-    at,
     damage: (base + statBonus(w, a.id, BUFF.attPower, base)) * aiMult,
     // 射程 buff 以格為單位
     range: (s.rangeCells + statBonus(w, a.id, BUFF.attRange, s.rangeCells)) * CELL,
@@ -66,6 +71,24 @@ function soldierAttacker(w: World, a: Actor, ctx: StepContext): Attacker | null 
     targetRule: s.targetRule,
     style: SOLDIER_STYLE[a.token]!,
   };
+}
+
+export function generalNumbers(w: World, g: General, data: GameData): AttackNumbers {
+  const st = generalStats(w, g, data);
+  const rangeCells = st.range / CELL;
+  return {
+    damage: st.damage + statBonus(w, g.id, BUFF.attPower, st.damage),
+    range: (rangeCells + statBonus(w, g.id, BUFF.attRange, rangeCells)) * CELL * weaponRangeMult(w, g),
+    intervalTicks: ticks(st.intervalMs / (1 + attackSpeedBonus(w, g.id))),
+    targetRule: st.targetRule,
+    style: WEAPON_STYLE[st.def.weaponType]!,
+  };
+}
+
+function soldierAttacker(w: World, a: Actor, ctx: StepContext): Attacker | null {
+  const at = actorCenter(a);
+  if (!at) return null;
+  return { src: { kind: 'actor', id: a.id }, side: a.side, at, ...soldierNumbers(w, a, ctx.data) };
 }
 
 function attackerOf(w: World, src: AttackSource, ctx: StepContext): Attacker | null {
@@ -76,18 +99,7 @@ function attackerOf(w: World, src: AttackSource, ctx: StepContext): Attacker | n
   const g = w.generals[src.id];
   const at = g ? generalCenter(w, g) : null;
   if (!g || !at) return null;
-  const st = generalStats(w, g, ctx.data);
-  const rangeCells = st.range / CELL;
-  return {
-    src,
-    side: g.side,
-    at,
-    damage: st.damage + statBonus(w, g.id, BUFF.attPower, st.damage),
-    range: (rangeCells + statBonus(w, g.id, BUFF.attRange, rangeCells)) * CELL * weaponRangeMult(w, g),
-    intervalTicks: ticks(st.intervalMs / (1 + attackSpeedBonus(w, g.id))),
-    targetRule: st.targetRule,
-    style: WEAPON_STYLE[st.def.weaponType]!,
-  };
+  return { src, side: g.side, at, ...generalNumbers(w, g, ctx.data) };
 }
 
 export function attackerFor(w: World, src: AttackSource, ctx: StepContext): Attacker | null {

@@ -16,6 +16,7 @@ import {
   type Palette,
 } from '../render/battleCanvas';
 import { h } from './dom';
+import { describeActor, type UnitInfo } from './unitInfo';
 
 /** 首局教程提示（依步驟） */
 const TUTORIAL_TIPS: Record<number, string> = {
@@ -43,11 +44,21 @@ export class BattleScreen {
   private readonly itemBar = h('div', { class: 'item-bar', 'aria-label': '我方道具' });
   private readonly tip = h('div', { class: 'tutorial-tip', role: 'status', hidden: true });
   private readonly aiItems = h('div', { class: 'item-ai muted' });
+  private readonly unitPanel = h('section', { class: 'unit-info', 'aria-label': '單位資訊', 'aria-live': 'polite', hidden: true });
+  private unitSig = '';
+  /** 點選中的單位（點一下顯示資訊，再點一次或點空地取消） */
+  private selected: number | null = null;
+  private selectedInfo: UnitInfo | null = null;
   private itemSig = '';
   /** 已選取、等待點目標的道具欄位 */
   private armed: number | null = null;
   private effects: Effect[] = [];
   private drag: DragState | null = null;
+  /**
+   * 剛放開、等待下一個 tick 套用的移動：命令要到下個 tick 才改世界，
+   * 這段期間把單位畫在目標格，避免原位置閃一下。tick 前進後清掉（被拒絕時自然回到原位）。
+   */
+  private settling: { drag: DragState; tick: number } | null = null;
   private palette: Palette;
   private rafId = 0;
   private toastTimer = 0;
@@ -80,6 +91,7 @@ export class BattleScreen {
       ),
       this.tip,
       h('div', { class: 'canvas-wrap' }, this.canvas, this.toast),
+      this.unitPanel,
       this.itemBar,
       this.aiItems,
       this.overlay,
@@ -232,8 +244,36 @@ export class BattleScreen {
     if (this.armed !== null) this.showToast('點選要使用的目標');
   }
 
+  /** 單位資訊面板：內容有變才重建 */
+  private updateUnitPanel(): void {
+    const info = this.selectedInfo;
+    const sig = info ? JSON.stringify([info.title, info.rows, info.notes]) : '';
+    if (sig === this.unitSig) return;
+    this.unitSig = sig;
+    this.unitPanel.hidden = !info;
+    if (!info) return this.unitPanel.replaceChildren();
+    this.unitPanel.classList.toggle('enemy', info.side === 1);
+    this.unitPanel.replaceChildren(
+      h(
+        'div',
+        { class: 'unit-info-head' },
+        h('h2', null, info.title),
+        h('button', { class: 'unit-info-close', 'aria-label': '關閉單位資訊', onclick: () => this.select(null) }, '×'),
+      ),
+      ...(info.rows.length ? [h('dl', null, ...info.rows.flatMap(([k, v]) => [h('dt', null, k), h('dd', null, v)]))] : []),
+      ...info.notes.map((n) => h('p', { class: 'muted small' }, n)),
+    );
+  }
+
+  private select(id: number | null): void {
+    this.selected = id;
+    this.selectedInfo = id === null ? null : describeActor(this.session.world, id, this.view.data!);
+    if (!this.selectedInfo) this.selected = null;
+  }
+
   private updateHud(): void {
     this.updateItems();
+    this.updateUnitPanel();
     const t = this.session.world.tutorial;
     const tipText = t ? TUTORIAL_TIPS[t.step] : '';
     this.tip.hidden = !tipText;
@@ -267,12 +307,17 @@ export class BattleScreen {
     const scale = this.canvas.width / BOARD_W;
     const ctx = this.ctx2d;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
+    // 選取的單位可能已被合成、回收或移動：每幀重算
+    if (this.selected !== null) this.select(this.selected);
+    if (this.settling && this.session.world.tick !== this.settling.tick) this.settling = null;
+    const drag = this.drag ?? this.settling?.drag ?? null;
     drawBattle(ctx, this.session.world, {
       data: this.view.data!,
       palette: this.palette,
       now,
       effects: this.effects,
-      drag: this.drag,
+      drag,
+      selected: drag ? null : this.selectedInfo,
       showDamage: this.view.profile?.settings.showDamageNumbers ?? true,
     });
     this.updateHud();
@@ -299,12 +344,13 @@ export class BattleScreen {
     return null;
   }
 
-  private actorAt(loc: BoardLoc | SlotLoc): number | null {
+  /** 該位置上的單位；征兵欄只看我方。mine=true 時只回傳我方（可拖動） */
+  private actorAt(loc: BoardLoc | SlotLoc, mine = true): number | null {
     const w = this.session.world;
     const id = loc.c === 'board' ? w.board[loc.x]?.[loc.y] : w.camps[0].slots[loc.i];
     if (id == null) return null;
     const a = w.actors[id];
-    return a && a.side === 0 && a.loc.c !== 'incoming' ? id : null;
+    return a && (!mine || a.side === 0) && a.loc.c !== 'incoming' ? id : null;
   }
 
   private bindInput(): void {
@@ -321,7 +367,12 @@ export class BattleScreen {
         return;
       }
       const id = loc ? this.actorAt(loc) : null;
-      if (id === null) return;
+      if (id === null) {
+        // 對方單位只能查看；點空地取消選取
+        const other = loc ? this.actorAt(loc, false) : null;
+        this.select(other !== null && other !== this.selected ? other : null);
+        return;
+      }
       c.setPointerCapture(e.pointerId);
       this.drag = { actorId: id, x: p.x, y: p.y, hover: null };
       e.preventDefault();
@@ -348,7 +399,10 @@ export class BattleScreen {
       const w = this.session.world;
       const cur = w.actors[id]?.loc;
       const same = cur && cur.c === loc.c && (loc.c === 'board' ? cur.c === 'board' && cur.x === loc.x && cur.y === loc.y : cur.c === 'slot' && cur.i === loc.i);
-      if (!same) this.session.enqueue({ type: 'MOVE', side: 0, actorId: id, to: loc });
+      // 原地放開＝點一下：切換選取，顯示攻擊、攻速、等級等資訊
+      if (same) return this.select(this.selected === id ? null : id);
+      this.session.enqueue({ type: 'MOVE', side: 0, actorId: id, to: loc });
+      if (previewMove(w, 0, id, loc, this.view.data!).ok) this.settling = { drag: landedAt(id, loc), tick: w.tick };
     });
     c.addEventListener('pointercancel', () => this.cancelDrag());
     c.addEventListener('lostpointercapture', () => this.cancelDrag());
@@ -358,6 +412,13 @@ export class BattleScreen {
   private cancelDrag(): void {
     this.drag = null;
   }
+}
+
+/** 單位落在目標格（或征兵欄）時的繪製位置與大小，與正式繪製一致 */
+function landedAt(actorId: number, loc: BoardLoc | SlotLoc): DragState {
+  if (loc.c === 'board') return { actorId, x: loc.x * CELL + CELL / 2, y: loc.y * CELL + CELL / 2, size: CELL - 12, hover: null };
+  const r = slotRect(loc.i);
+  return { actorId, x: r.x + r.w / 2, y: r.y + r.h / 2, size: r.w, hover: null };
 }
 
 function setText(el: HTMLElement, text: string): void {
