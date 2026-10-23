@@ -78,7 +78,7 @@ describe('對局中點選單位的資訊', () => {
     expect(row(info, '等級')).toBe('1 / 5');
     expect(row(info, '經驗')).toBe('0 / 10');
     expect(row(info, '攻擊')).toBe(String(Number(atk.damage.toFixed(1))));
-    expect(row(info, '武器')).toBe('預設槍');
+    expect(row(info, '武器')).toBe('制式槍');
     expect(row(info, '技能')).toBe('七進七出（0 / 30 次攻擊）');
     expect(info.cells).toEqual([{ ...info.cells[0]!, w: 2 }]);
   });

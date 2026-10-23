@@ -21,8 +21,8 @@ import { describeActor, type UnitInfo } from './unitInfo';
 
 /** 首局教程提示（依步驟） */
 const TUTORIAL_TIPS: Record<number, string> = {
-  0: '教程：按「征兵」召集士兵。',
-  1: '把下方征兵欄的兵拖到己方陣地（亮色格子）；同字同級疊上去可以合成升級。',
+  0: '初陣：按「征兵」召集士兵。',
+  1: '把下方征兵欄的兵拖到己方陣地（藍色區域）；同字同級疊上去可以合成升級。',
   2: '敵人要來了！守住右下角的阿斗。再征兵一次看看。',
   3: '把「黃」和「忠」左右相鄰排在同一列（姓在左），就會合成武將黃忠。鏟子可以拖到「荒」地開墾。',
 };
@@ -158,10 +158,10 @@ export class BattleScreen {
         'p',
         { class: 'muted' },
         restored
-          ? `已從最後保存點（第 ${this.session.world.wave.wave} 波）恢復；保存點之後的幾秒不會補回。按「繼續」開始。`
+          ? `戰局回到第 ${this.session.world.wave.wave} 波，最後幾秒的佈置可能需要重做。按「繼續」再戰。`
           : hidden
-            ? '切換分頁時戰鬥會自動暫停，不會在背景繼續。'
-            : '戰鬥計時與出兵都已停止。',
+            ? '離開畫面時，戰鬥會自動暫停。'
+            : '敵我雙方都已停下，按「繼續」回到戰場。',
       ),
       this.confirmSurrender
         ? h(
@@ -192,7 +192,7 @@ export class BattleScreen {
       else if (ev.type === 'waveStart') this.showToast(`第 ${ev.wave} 波`);
       else if (ev.type === 'adouHit' && ev.side === 0) this.showToast(`阿斗受傷！剩 ${Math.max(0, ev.lives)} 命`);
       else if (ev.type === 'drop') this.showToast(`獲得碎片：${this.view.data!.weapons.weapons.find((x) => x.id === ev.weaponId)?.name ?? ''}`);
-      else if (ev.type === 'bossSpawn' && ev.side === 0) this.showToast(`Boss 出現：${this.view.data!.waves.bosses[ev.bossId]!.name}`);
+      else if (ev.type === 'bossSpawn' && ev.side === 0) this.showToast(`敵將${this.view.data!.waves.bosses[ev.bossId]!.name}來襲！`);
       else if (ev.type === 'damage') {
         // 只顯示自己防區的傷害數字
         if (this.session.world.enemies[ev.enemyId]?.side !== 1) this.effects.push({ ev, born: now });
@@ -234,7 +234,7 @@ export class BattleScreen {
         it.cd > 0 && h('small', null, `${secs}s`),
       );
     });
-    this.itemBar.replaceChildren(...(buttons.length ? buttons : [h('span', { class: 'muted' }, '沒有道具（可在主畫面的商店購買，當日有效）')]));
+    this.itemBar.replaceChildren(...(buttons.length ? buttons : [h('span', { class: 'muted' }, '未攜帶道具')]));
     const ai = w.items[1].map((i) => data.items.items[i.itemId]!.name);
     this.aiItems.textContent = ai.length ? `對方道具：${ai.join('、')}` : '';
   }
@@ -291,8 +291,8 @@ export class BattleScreen {
     const waveText =
       s.phase === 'ready'
         ? w.tutorial
-          ? '教學中：照提示操作後開始出兵'
-          : `準備中 ${secs(data.waves.initialDelayMs)} 秒（征兵後提前開戰）`
+          ? '初陣：照提示佈陣後敵軍才會出現'
+          : `備戰 ${secs(data.waves.initialDelayMs)} 秒（征兵即開戰）`
         : s.phase === 'spawning'
           ? `第 ${s.wave}/${data.waves.waveCount} 波 · 出兵 ${s.spawned}/${data.waves.spawnCountByWave[s.wave - 1]}`
           : s.phase === 'intermission'

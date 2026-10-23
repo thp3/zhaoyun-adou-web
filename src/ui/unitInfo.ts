@@ -95,7 +95,7 @@ function generalInfo(w: World, g: General, data: GameData): UnitInfo {
     ['等級', `${g.level} / ${def.maxLevel}`],
     ['經驗', next === undefined || g.level >= def.maxLevel ? `${g.exp}（已滿級）` : `${g.exp} / ${next}`],
     ...attackRows(cur, base),
-    ['武器', weapon ? `${weapon.name}（攻擊 +${weapon.addAttPower}）` : `預設${data.weapons.typeNames[def.weaponType]}`],
+    ['武器', weapon ? `${weapon.name}（攻擊 +${weapon.addAttPower}）` : `制式${data.weapons.typeNames[def.weaponType]}`],
   ];
   const notes = statusNotes(w, g.id);
   const sk = def.skill ? data.generals.skills.find((s) => s.id === def.skill!.skill) : undefined;
@@ -104,7 +104,7 @@ function generalInfo(w: World, g: General, data: GameData): UnitInfo {
     rows.push(['技能', t > 0 ? `${sk.name}（${Math.min(g.skillCount, t)} / ${t} 次攻擊）` : `${sk.name}（被動）`]);
     notes.push(sk.description);
   }
-  if (weapon) notes.push(weapon.summary);
+  if (weapon) notes.push(weapon.intro);
   const first = w.actors[g.partIds[0]!];
   const cells = first?.loc.c === 'board' ? [{ x: first.loc.x, y: first.loc.y, w: g.partIds.length }] : [];
   return { side: g.side, title: def.name, rows, notes, range: rangeAround(cells, cur.range), cells };
@@ -118,7 +118,7 @@ function nameInfo(w: World, a: Actor, data: GameData): UnitInfo {
     : [];
   return {
     side: a.side,
-    title: `${tok?.display ?? a.token}（名字字）`,
+    title: `「${tok?.display ?? a.token}」字`,
     rows: a.exp > 0 ? [['保留經驗', String(a.exp)]] : [],
     notes: ['尚未成為武將，不會攻擊。', ...notes],
     range: null,

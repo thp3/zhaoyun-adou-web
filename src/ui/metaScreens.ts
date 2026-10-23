@@ -92,7 +92,7 @@ function weaponsPanel(c: Ctx): HTMLElement {
           'div',
           { class: 'card equip-card' },
           h('div', { class: 'head' }, h('span', { class: 'item-name' }, g.name), h('span', { class: 'chip small' }, data.weapons.typeNames[g.weaponType])),
-          h('span', { class: `weapon${wid < 0 ? ' none' : ''}` }, wid < 0 ? `預設${data.weapons.typeNames[g.weaponType]}` : wname(wid)),
+          h('span', { class: `weapon${wid < 0 ? ' none' : ''}` }, wid < 0 ? `制式${data.weapons.typeNames[g.weaponType]}` : wname(wid)),
           wid >= 0 && h('button', { onclick: () => void act(c, app.unequipWeapon(g.id), '已卸下') }, '卸下'),
         );
       }),
@@ -200,7 +200,7 @@ function shopPanel(c: Ctx): HTMLElement {
   const offers = h(
     'section',
     { class: 'card-list' },
-    sectionTitle('shop', '商品', s.soldOut ? '已售罄，下次打開會換一批' : '買一件即整組售罄'),
+    sectionTitle('shop', '商品', s.soldOut ? '已售罄，下回再來看看' : '每批只能挑一件'),
     ...s.offers.map((o, i) => {
       const def = data.items.items[o.itemId]!;
       const rid = def.levels?.[o.level - 1]?.rarity ?? def.rarity;
@@ -241,7 +241,7 @@ function shopPanel(c: Ctx): HTMLElement {
     'section',
     { class: 'card-list' },
     sectionTitle('gift', '今日道具', `主動 ${activeN}/${data.items.capacity.active} · 被動 ${passiveN}/${data.items.capacity.passive}`),
-    p.items.length === 0 ? h('p', { class: 'muted' }, '還沒有道具。道具每天重置。') : null,
+    p.items.length === 0 ? h('p', { class: 'muted' }, '今日尚未購買道具。道具只在當日有效。') : null,
     ...p.items.map((i) => {
       const def = data.items.items[i.id]!;
       return h(
@@ -253,13 +253,7 @@ function shopPanel(c: Ctx): HTMLElement {
       );
     }),
   );
-  const lottery = h(
-    'section',
-    { class: 'card-list' },
-    sectionTitle('refresh', '輪盤'),
-    lockedNote('原版輪盤需要看完獎勵影片才能轉。本版沒有接廣告服務，所以暫不開放，以免假裝成功發獎。'),
-  );
-  return h('div', { class: 'panel-body' }, offers, owned, lottery);
+  return h('div', { class: 'panel-body' }, offers, owned);
 }
 
 // ---------------- 段位 ----------------
@@ -291,7 +285,7 @@ function rankPanel(c: Ctx): HTMLElement {
           h('div', { class: 'rank-stars' }, emperor ? `${pos.level} 星` : '★'.repeat(pos.level) + '☆'.repeat(Math.max(0, data.ranks.starsPerRank - pos.level))),
         ),
       ),
-      h('p', { class: 'muted small', style: 'margin:.75rem 0 0' }, `勝利加星、敗北扣星；第 10 波後敵人血量 +${Math.round(rank.addHp * 100)}%。`),
+      h('p', { class: 'muted small', style: 'margin:.75rem 0 0' }, '勝利加星、敗北扣星；段位越高，敵軍越強。'),
     ),
     h(
       'section',
@@ -314,7 +308,7 @@ function rankPanel(c: Ctx): HTMLElement {
         h(
           'table',
           { class: 'rank-table' },
-          h('thead', null, h('tr', null, h('th', null, '段位'), h('th', null, '每日金幣'), h('th', null, '第 10 波後敵人血量'))),
+          h('thead', null, h('tr', null, h('th', null, '段位'), h('th', null, '每日金幣'))),
           h(
             'tbody',
             null,
@@ -326,7 +320,6 @@ function rankPanel(c: Ctx): HTMLElement {
                   { class: r.name === rank.name && (r.id < 50 || r.id === pos.rankId) ? 'current' : '' },
                   h('td', null, r.id >= 50 ? `${r.name}（${r.id - 49}）` : r.name),
                   h('td', null, r.reward),
-                  h('td', null, `+${Math.round(r.addHp * 100)}%`),
                 ),
               ),
           ),
@@ -372,7 +365,7 @@ function codexPanel(c: Ctx): HTMLElement {
             h('div', null, h('div', { class: 'item-name' }, open ? g.name : '尚未合成'), h('div', { class: 'muted small' }, `${data.weapons.typeNames[g.weaponType]} · 最高 ${g.maxLevel} 級`)),
           ),
           open
-            ? h('p', { class: 'small', style: 'margin:0' }, skill ? `${skill.name}：${skill.description}${g.skill!.triggerAttacks ? `（每 ${g.skill!.triggerAttacks} 次攻擊）` : ''}` : '沒有具名技能')
+            ? h('p', { class: 'small', style: 'margin:0' }, skill ? `${skill.name}：${skill.description}${g.skill!.triggerAttacks ? `（每 ${g.skill!.triggerAttacks} 次攻擊）` : ''}` : '無特殊技能')
             : null,
         );
       }),

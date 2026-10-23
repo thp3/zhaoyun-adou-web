@@ -94,7 +94,7 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
       },
       icon('swords'),
       h('span', { class: 'big' }, '出戰'),
-      h('small', null, lacking ? `體力不足（需要 ${cost}，${staminaHint(p, data, now)}）` : `消耗 ${cost} 體力 · 對手為本機 AI`),
+      h('small', null, lacking ? `體力不足（需要 ${cost}，${staminaHint(p, data, now)}）` : `消耗 ${cost} 體力`),
     ),
     h(
       'nav',
@@ -122,7 +122,7 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
       'footer',
       { class: 'savebar muted' },
       view.lastSavedAt ? `已保存 ${formatTime(view.lastSavedAt)}` : '進度保存在此瀏覽器',
-      ` · v${VERSIONS.app}（${VERSIONS.commit}）`,
+      ` · v${VERSIONS.app}`,
     ),
   );
   if (ui.update) {
@@ -130,7 +130,7 @@ export function renderLobby(view: AppView, ui: UiState, app: AppController, rere
       h(
         'div',
         { class: 'notice', role: 'status' },
-        h('span', null, `有新版本（${ui.update.commit}）可以更新。`),
+        h('span', null, '有新版本可用。'),
         h('button', { class: 'link', onclick: () => location.reload() }, '重新整理更新'),
       ),
     );
@@ -217,9 +217,10 @@ function settingsDialog(p: Profile, ui: UiState, app: AppController, rerender: (
         { class: 'dialog-section' },
         h('h3', null, '版本'),
         h(
-          'p',
+          'details',
           { class: 'muted small' },
-          `程式 v${VERSIONS.app}（${VERSIONS.commit}）· 規則 ${VERSIONS.ruleset} · 存檔格式 ${VERSIONS.saveSchema} · 資料庫 ${VERSIONS.db}`,
+          h('summary', null, `v${VERSIONS.app}`),
+          `程式 ${VERSIONS.commit} · 規則 ${VERSIONS.ruleset} · 存檔格式 ${VERSIONS.saveSchema} · 資料庫 ${VERSIONS.db}`,
         ),
       ),
     ),

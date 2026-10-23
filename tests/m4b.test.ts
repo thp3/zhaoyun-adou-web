@@ -283,7 +283,7 @@ describe('主動道具', () => {
     expect(a.level).toBe(2);
     const b = soldier(w, 'bow', 5);
     w.items[0][slot]!.cd = 0;
-    expect(useItem(w, 0, slot, b.loc as never, ctx())).toEqual({ ok: false, reason: '滿級不可使用' });
+    expect(useItem(w, 0, slot, b.loc as never, ctx())).toEqual({ ok: false, reason: '已是最高等級' });
   });
 
   it('攻速符 +40%；御敵千里只能用在遠程', () => {
@@ -293,7 +293,7 @@ describe('主動道具', () => {
     const s1 = giveItem(w, ITEM.attSpeedSpell);
     useItem(w, 0, s1, blade.loc as never, ctx());
     const s2 = giveItem(w, ITEM.longRange);
-    expect(useItem(w, 0, s2, blade.loc as never, ctx())).toEqual({ ok: false, reason: '只能遠程' });
+    expect(useItem(w, 0, s2, blade.loc as never, ctx())).toEqual({ ok: false, reason: '只能對弓兵或使弓的武將使用' });
     expect(useItem(w, 0, s2, bow.loc as never, ctx()).ok).toBe(true);
     run(w, ticks(700));
     expect(statBonus(w, blade.id, BUFF.attSpeed, 1)).toBeCloseTo(0.4);

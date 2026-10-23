@@ -298,7 +298,7 @@ export function validateItem(w: World, side: Side, slot: number, to: BoardLoc | 
   const own = (x: number, y: number) => w.camp[x]?.[y] === side;
   switch (it.itemId) {
     case ITEM.shovel:
-      if (to?.c !== 'board' || !own(to.x, to.y) || w.kind[to.x]![to.y] !== 2) return no('不是擴展格');
+      if (to?.c !== 'board' || !own(to.x, to.y) || w.kind[to.x]![to.y] !== 2) return no('只能用在己方荒地');
       if (w.board[to.x]![to.y] != null) return no('請先移開格子上的單位');
       return ok;
     case ITEM.bulldozer:
@@ -309,19 +309,19 @@ export function validateItem(w: World, side: Side, slot: number, to: BoardLoc | 
     case ITEM.attSpeedSpell:
     case ITEM.trashCan:
     case ITEM.longRange: {
-      if (!to) return no('非戰鬥區域');
-      if (!a || a.side !== side || a.loc.c === 'incoming') return no('無單位');
-      if (to.c === 'board' && !own(to.x, to.y)) return no('陣營不匹配');
-      if (a.kind === 'farmer' && it.itemId !== ITEM.trainingSpell && it.itemId !== ITEM.upLvlSpell) return no('不能對農民');
-      if (a.kind === 'shovel') return no('沒有文字');
+      if (!to) return no('請點選戰場上的單位');
+      if (!a || a.side !== side || a.loc.c === 'incoming') return no('請點選己方單位');
+      if (to.c === 'board' && !own(to.x, to.y)) return no('只能對己方單位使用');
+      if (a.kind === 'farmer' && it.itemId !== ITEM.trainingSpell && it.itemId !== ITEM.upLvlSpell) return no('不能對農民使用');
+      if (a.kind === 'shovel') return no('不能對鏟子使用');
       if (it.itemId === ITEM.writingBrush && a.generalId !== null && (w.generals[a.generalId]?.busyUntil ?? 0) > w.tick) return no('技能施放中不能使用');
-      if ((it.itemId === ITEM.trainingSpell || it.itemId === ITEM.upLvlSpell) && unitMaxed(w, a, data)) return no('滿級不可使用');
-      if (it.itemId === ITEM.trainingSpell && a.level > 4) return no('等級過高');
-      if (it.itemId === ITEM.attSpeedSpell && a.kind === 'name' && a.generalId === null) return no('只能士兵或武將');
+      if ((it.itemId === ITEM.trainingSpell || it.itemId === ITEM.upLvlSpell) && unitMaxed(w, a, data)) return no('已是最高等級');
+      if (it.itemId === ITEM.trainingSpell && a.level > 4) return no('等級太高，無法使用');
+      if (it.itemId === ITEM.attSpeedSpell && a.kind === 'name' && a.generalId === null) return no('只能對士兵或武將使用');
       if (it.itemId === ITEM.longRange) {
         const g = a.generalId !== null ? w.generals[a.generalId] : undefined;
         const ranged = a.token === 'bow' || (g && data.generals.generals[g.type]!.weaponType === 0);
-        if (!ranged) return no('只能遠程');
+        if (!ranged) return no('只能對弓兵或使弓的武將使用');
         if (hasBuff(w, g ? g.id : a.id, BUFF.attRange)) return no('已有此效果');
       }
       return ok;
@@ -329,15 +329,15 @@ export function validateItem(w: World, side: Side, slot: number, to: BoardLoc | 
     case ITEM.lifePill:
       return ok;
     case ITEM.inkstone:
-      return to?.c === 'board' ? ok : no('非戰鬥區域');
+      return to?.c === 'board' ? ok : no('請點選戰場上的位置');
     case ITEM.trap:
     case ITEM.landmine: {
-      if (to?.c !== 'board') return no('非戰鬥區域');
-      if (w.kind[to.x]![to.y] !== 0) return no('不是道路');
-      if (it.itemId === ITEM.trap && !own(to.x, to.y)) return no('陣營不匹配');
-      if (isEntryOrEnd(w, to.x, to.y, data)) return no('不能出入口');
+      if (to?.c !== 'board') return no('請點選戰場上的道路');
+      if (w.kind[to.x]![to.y] !== 0) return no('只能放在道路上');
+      if (it.itemId === ITEM.trap && !own(to.x, to.y)) return no('只能放在己方道路');
+      if (isEntryOrEnd(w, to.x, to.y, data)) return no('入口與阿斗所在處不能放置');
       const busy = Object.values(w.skills).some((s) => s.kind === 'trap' && cellOf(s.x, s.y).cx === to.x && cellOf(s.x, s.y).cy === to.y);
-      return busy ? no('格子不為空') : ok;
+      return busy ? no('這裡已經佈置過了') : ok;
     }
   }
   return no('這個道具不能使用');

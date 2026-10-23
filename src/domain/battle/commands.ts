@@ -123,8 +123,8 @@ function cellOk(w: World, a: Actor, to: BoardLoc): string | null {
 
 /** 某 actor 放到某位置是否合法（不考慮該位置上現有的 actor） */
 function placeOk(w: World, a: Actor, to: Loc): string | null {
-  if (to.c === 'incoming') return '欄位正在征兵';
-  if (to.c === 'slot') return to.i >= 0 && to.i < w.camps[a.side].slots.length ? null : '無效欄位';
+  if (to.c === 'incoming') return '援軍正在趕來';
+  if (to.c === 'slot') return to.i >= 0 && to.i < w.camps[a.side].slots.length ? null : '無法放在這裡';
   return cellOk(w, a, to);
 }
 
@@ -164,7 +164,7 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
   const a = w.actors[actorId];
   if (!a) return { result: { ok: false, reason: '單位已不存在' } };
   if (a.side !== side) return { result: { ok: false, reason: '不是己方單位' } };
-  if (a.loc.c === 'incoming') return { result: { ok: false, reason: '單位還在路上' } };
+  if (a.loc.c === 'incoming') return { result: { ok: false, reason: '援軍還在路上' } };
   if (unitPinned(w, a.id)) return { result: { ok: false, reason: '單位受控制，無法移動' } };
   const from = a.loc;
   if (from.c === to.c && (from.c === 'board' ? from.x === (to as BoardLoc).x && from.y === (to as BoardLoc).y : from.i === (to as SlotLoc).i)) {
@@ -178,7 +178,7 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
   }
   const b = w.actors[otherId];
   if (!b) return { result: { ok: false, reason: '目標不存在' } };
-  if (b.loc.c === 'incoming') return { result: { ok: false, reason: '欄位正在征兵' } };
+  if (b.loc.c === 'incoming') return { result: { ok: false, reason: '援軍正在趕來' } };
   if (unitPinned(w, b.id)) return { result: { ok: false, reason: '目標受控制，無法交換' } };
   if (a.kind === 'shovel' && to.c === 'board') return { result: { ok: false, reason: '這塊地上已有單位' } };
   // 同字同級才合成；同字不同級當作一般交換
