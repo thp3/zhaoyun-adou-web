@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadGameData } from '../src/data';
-import { applyCommand, drawToken } from '../src/domain/battle/commands';
+import { applyCommand, drawToken, previewMove } from '../src/domain/battle/commands';
 import { createWorld } from '../src/domain/battle/create';
 import { enemyHp } from '../src/domain/battle/enemies';
 import { lanePath } from '../src/domain/battle/path';
@@ -90,7 +90,7 @@ describe('牌庫與征兵', () => {
 });
 
 describe('移動、合成、開墾', () => {
-  it('同字同級合成升 1 級；不同級拒絕；5 級不再合', () => {
+  it('同字同級合成升 1 級；不同級交換位置；5 級不再合', () => {
     const w = newWorld();
     const [c1, c2, c3] = deployCells(w, 0);
     const a = place(w, 'blade', c1!.x, c1!.y);
@@ -100,7 +100,13 @@ describe('移動、合成、開墾', () => {
     expect(w.actors[b.id]!.level).toBe(2);
     expect(w.board[c1!.x]![c1!.y]).toBeNull();
     const d = place(w, 'blade', c3!.x, c3!.y);
-    expect(applyCommand(w, { type: 'MOVE', side: 0, actorId: d.id, to: { c: 'board', ...c2! } }, ctx()).ok).toBe(false);
+    expect(previewMove(w, 0, d.id, { c: 'board', ...c2! }, data).ok).toBe(true);
+    expect(applyCommand(w, { type: 'MOVE', side: 0, actorId: d.id, to: { c: 'board', ...c2! } }, ctx()).ok).toBe(true);
+    expect(w.board[c2!.x]![c2!.y]).toBe(d.id);
+    expect(w.board[c3!.x]![c3!.y]).toBe(b.id);
+    expect([w.actors[b.id]!.level, d.level]).toEqual([2, 1]);
+    // 換回原位，接著測 5 級
+    applyCommand(w, { type: 'MOVE', side: 0, actorId: d.id, to: { c: 'board', ...c3! } }, ctx());
     w.actors[b.id]!.level = 5;
     d.level = 5;
     expect(applyCommand(w, { type: 'MOVE', side: 0, actorId: d.id, to: { c: 'board', ...c2! } }, ctx())).toEqual({ ok: false, reason: '已達最高等級' });

@@ -181,9 +181,9 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
   if (b.loc.c === 'incoming') return { result: { ok: false, reason: '欄位正在征兵' } };
   if (unitPinned(w, b.id)) return { result: { ok: false, reason: '目標受控制，無法交換' } };
   if (a.kind === 'shovel' && to.c === 'board') return { result: { ok: false, reason: '這塊地上已有單位' } };
-  if ((a.kind === 'soldier' || a.kind === 'farmer') && a.kind === b.kind && a.token === b.token) {
+  // 同字同級才合成；同字不同級當作一般交換
+  if ((a.kind === 'soldier' || a.kind === 'farmer') && a.kind === b.kind && a.token === b.token && a.level === b.level) {
     if (unitSuppressed(w, a.id) || unitSuppressed(w, b.id)) return { result: { ok: false, reason: '受壓制不能合成' } };
-    if (a.level !== b.level) return { result: { ok: false, reason: '等級不同不能合成' } };
     if (b.level >= SOLDIER_MAX_LEVEL) return { result: { ok: false, reason: '已達最高等級' } };
     return { result: ok, plan: 'merge', actor: a, other: b };
   }
