@@ -15,6 +15,7 @@ import {
   type Effect,
   type Palette,
 } from '../render/battleCanvas';
+import { BattleFx } from '../render/fx';
 import { h } from './dom';
 import { describeActor, type UnitInfo } from './unitInfo';
 
@@ -53,6 +54,10 @@ export class BattleScreen {
   /** 已選取、等待點目標的道具欄位 */
   private armed: number | null = null;
   private effects: Effect[] = [];
+  /** 打擊感：衝刺、閃白、粒子、震動（純視覺） */
+  private readonly fx = new BattleFx();
+  private readonly reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+  private lastFrame = performance.now();
   private drag: DragState | null = null;
   /**
    * 剛放開、等待下一個 tick 套用的移動：命令要到下個 tick 才改世界，
@@ -181,6 +186,7 @@ export class BattleScreen {
 
   private onEvents(events: BattleEvent[]): void {
     const now = performance.now();
+    this.fx.onEvents(events, this.session.world, now);
     for (const ev of events) {
       if (ev.type === 'rejected' && ev.side === 0) this.showToast(ev.reason);
       else if (ev.type === 'waveStart') this.showToast(`第 ${ev.wave} 波`);
@@ -304,6 +310,10 @@ export class BattleScreen {
   private draw(): void {
     const now = performance.now();
     this.effects = this.effects.filter((e) => now - e.born < EFFECT_TTL);
+    // 系統「減少動態效果」或遊戲設定任一開啟就減少特效；暫停時特效凍結
+    this.fx.reduced = this.reducedMotion.matches || (this.view.profile?.settings.reduceEffects ?? false);
+    if (this.view.state === 'BATTLE_RUNNING') this.fx.tick(now, now - this.lastFrame);
+    this.lastFrame = now;
     const scale = this.canvas.width / BOARD_W;
     const ctx = this.ctx2d;
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
@@ -318,6 +328,7 @@ export class BattleScreen {
       effects: this.effects,
       drag,
       selected: drag ? null : this.selectedInfo,
+      fx: this.fx,
       showDamage: this.view.profile?.settings.showDamageNumbers ?? true,
     });
     this.updateHud();

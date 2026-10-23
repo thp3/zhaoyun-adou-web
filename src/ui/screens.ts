@@ -172,6 +172,16 @@ function settingsDialog(p: Profile, ui: UiState, app: AppController, rerender: (
         }),
         '顯示傷害數字',
       ),
+      h(
+        'label',
+        { class: 'row' },
+        h('input', {
+          type: 'checkbox',
+          checked: p.settings.reduceEffects,
+          onchange: (e: Event) => void app.updateSettings({ reduceEffects: (e.target as HTMLInputElement).checked }),
+        }),
+        '減少特效（關閉震動、晃動與粒子）',
+      ),
       h('h3', null, '版本'),
       h(
         'p',

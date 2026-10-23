@@ -46,7 +46,8 @@ export const ProfileSchema = z.object({
   openProps: z.boolean(),
   mergedGenerals: z.array(z.string()),
   tutorial: z.object({ firstBattleDone: z.boolean(), weaponDragGuideDone: z.boolean() }),
-  settings: z.object({ showDamageNumbers: z.boolean() }),
+  // reduceEffects 為後加欄位：舊存檔沒有時預設關閉，不需升存檔格式版本
+  settings: z.object({ showDamageNumbers: z.boolean(), reduceEffects: z.boolean().default(false) }),
 });
 
 export type Profile = z.infer<typeof ProfileSchema>;
@@ -76,7 +77,7 @@ export function createDefaultProfile(now: number, today: DayKey, rules: NewProfi
     openProps: false,
     mergedGenerals: [],
     tutorial: { firstBattleDone: false, weaponDragGuideDone: false },
-    settings: { showDamageNumbers: true },
+    settings: { showDamageNumbers: true, reduceEffects: false },
   };
 }
 
