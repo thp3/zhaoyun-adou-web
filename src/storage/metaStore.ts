@@ -3,7 +3,7 @@ import type { Profile } from '../domain/profile/profile';
 import type { ShopSession } from '../domain/profile/shop';
 import { PROFILE_KEY, type GameDatabase } from './db';
 import { migrateProfile } from './migrations';
-import { StorageError } from './profileRepository';
+import { checkFence, StorageError, type Fence } from './errors';
 
 const SHOP_KEY = 'shop';
 
@@ -14,11 +14,15 @@ function parseProfile(raw: unknown): Profile {
 }
 
 export class MetaStore {
-  constructor(private readonly db: GameDatabase) {}
+  constructor(
+    private readonly db: GameDatabase,
+    private readonly fence?: Fence,
+  ) {}
 
   /** 打開商店：沿用尚未售罄的活動；已售罄或沒有才依目前存檔建立新活動 */
   async openShop(make: (p: Profile) => ShopSession): Promise<ShopSession> {
-    const tx = this.db.transaction(['profile', 'shopOps'], 'readwrite');
+    const tx = this.db.transaction(['profile', 'shopOps', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const current = (await tx.objectStore('shopOps').get(SHOP_KEY)) as ShopSession | undefined;
     if (current && !current.soldOut) {
       await tx.done;
@@ -35,7 +39,8 @@ export class MetaStore {
     sessionId: string,
     apply: (p: Profile, s: ShopSession) => { ok: true; profile: Profile; session: ShopSession } | { ok: false; reason: string },
   ): Promise<{ ok: true; profile: Profile; session: ShopSession } | { ok: false; reason: string }> {
-    const tx = this.db.transaction(['profile', 'shopOps'], 'readwrite');
+    const tx = this.db.transaction(['profile', 'shopOps', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const session = (await tx.objectStore('shopOps').get(SHOP_KEY)) as ShopSession | undefined;
     const profile = parseProfile(await tx.objectStore('profile').get(PROFILE_KEY));
     if (!session || session.sessionId !== sessionId) {

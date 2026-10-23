@@ -6,7 +6,7 @@ import type { ResultDraft, SettlementDelta } from '../domain/profile/settlement'
 import { addStamina, spendStamina, type StaminaRules } from '../domain/profile/stamina';
 import { PROFILE_KEY, type GameDatabase } from './db';
 import { migrateProfile } from './migrations';
-import { StorageError } from './profileRepository';
+import { checkFence, StorageError, type Fence } from './errors';
 
 export const ACTIVE_KEY = 'active';
 
@@ -49,6 +49,8 @@ export const BattleRecordSchema = z.object({
   }),
   progress: z.object({ wave: z.number().int().nonnegative(), tick: z.number().int().nonnegative(), kills: z.number().int().nonnegative() }),
   resultDraft: DraftSchema.nullable(),
+  /** 最後一次成功保存的 World 快照（M6 起）；格式由 domain/battle/snapshot 檢查 */
+  snapshot: z.unknown().optional(),
 });
 export type BattleRecord = z.output<typeof BattleRecordSchema>;
 export type BattleSetup = BattleRecord['setup'];
@@ -89,7 +91,10 @@ export type StartOutcome =
   | { kind: 'no-stamina'; profile: Profile };
 
 export class BattleStore {
-  constructor(private readonly db: GameDatabase) {}
+  constructor(
+    private readonly db: GameDatabase,
+    private readonly fence?: Fence,
+  ) {}
 
   async getActive(): Promise<BattleRecord | null> {
     return parseRecord(await this.db.get('battles', ACTIVE_KEY));
@@ -108,7 +113,8 @@ export class BattleStore {
     stamina: StaminaRules;
     makeSetup: (p: Profile) => BattleSetup;
   }): Promise<StartOutcome> {
-    const tx = this.db.transaction(['profile', 'battles'], 'readwrite');
+    const tx = this.db.transaction(['profile', 'battles', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const existing = parseRecord(await tx.objectStore('battles').get(ACTIVE_KEY));
     if (existing) {
       await tx.done;
@@ -142,7 +148,8 @@ export class BattleStore {
 
   /** 尚未開始的對局取消：唯一一次退還體力（封頂），不計勝敗 */
   async cancelPrepared(battleId: string, now: number, stamina: StaminaRules): Promise<Profile> {
-    const tx = this.db.transaction(['profile', 'battles', 'receipts'], 'readwrite');
+    const tx = this.db.transaction(['profile', 'battles', 'receipts', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const raw = await tx.objectStore('profile').get(PROFILE_KEY);
     const profile = parseProfile(raw);
     if (await tx.objectStore('receipts').get(battleId)) {
@@ -166,14 +173,15 @@ export class BattleStore {
   }
 
   private async patchActive(battleId: string, patch: (r: BattleRecord) => BattleRecord | null): Promise<BattleRecord | null> {
-    const tx = this.db.transaction('battles', 'readwrite');
-    const record = parseRecord(await tx.store.get(ACTIVE_KEY));
+    const tx = this.db.transaction(['battles', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
+    const record = parseRecord(await tx.objectStore('battles').get(ACTIVE_KEY));
     if (!record || record.battleId !== battleId) {
       await tx.done;
       return null;
     }
     const next = patch(record);
-    if (next) await tx.store.put(next, ACTIVE_KEY);
+    if (next) await tx.objectStore('battles').put(next, ACTIVE_KEY);
     await tx.done;
     return next ?? record;
   }
@@ -184,6 +192,11 @@ export class BattleStore {
 
   saveProgress(battleId: string, progress: BattleRecord['progress']): Promise<BattleRecord | null> {
     return this.patchActive(battleId, (r) => (r.phase === 'STARTED' ? { ...r, progress } : null));
+  }
+
+  /** 保存快照與進度；只在對局進行中（STARTED）有效 */
+  saveSnapshot(battleId: string, snapshot: unknown, progress: BattleRecord['progress']): Promise<BattleRecord | null> {
+    return this.patchActive(battleId, (r) => (r.phase === 'STARTED' ? { ...r, progress, snapshot } : null));
   }
 
   /** 先凍結 ResultDraft；已有草稿時保留第一份，不覆寫 */
@@ -199,7 +212,8 @@ export class BattleStore {
     now: number,
     apply: (p: Profile, draft: ResultDraft) => { profile: Profile; delta: SettlementDelta },
   ): Promise<{ receipt: Receipt; profile: Profile }> {
-    const tx = this.db.transaction(['profile', 'battles', 'receipts'], 'readwrite');
+    const tx = this.db.transaction(['profile', 'battles', 'receipts', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const profile = parseProfile(await tx.objectStore('profile').get(PROFILE_KEY));
     const done = (await tx.objectStore('receipts').get(battleId)) as Receipt | undefined;
     if (done) {

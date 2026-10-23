@@ -134,7 +134,7 @@ describe('開局與結算交易', () => {
 describe('AppController 完整一局', () => {
   it('開局扣體力 → 開戰 → 放棄 → 結算 → 回主畫面', async () => {
     const name = dbName();
-    const app = new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.5, autoRun: false });
+    const app = new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.5, autoRun: false, heartbeat: false });
     await app.boot();
     await app.startBattle();
     expect(app.machine.state).toBe('OPPONENT_PRESENTATION');
@@ -155,7 +155,7 @@ describe('AppController 完整一局', () => {
 
   it('切頁暫停後，只關掉暫停選單不會自己跑；玩家按繼續才恢復', async () => {
     const name = dbName();
-    const app = new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.3, autoRun: false });
+    const app = new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.3, autoRun: false, heartbeat: false });
     await app.boot();
     await app.startBattle();
     await app.beginBattle();
@@ -167,24 +167,59 @@ describe('AppController 完整一局', () => {
     expect(app.machine.state).toBe('BATTLE_RUNNING');
   });
 
-  it('重新整理遇到已開始的對局：以最後保存波次放棄結算，只一次', async () => {
+  it('重新整理遇到已開始的對局：從快照恢復到暫停，按繼續才推進', async () => {
     const name = dbName();
-    const mk = () => new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.7, autoRun: false });
+    const mk = () => new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.7, autoRun: false, heartbeat: false });
     const a = mk();
     await a.boot();
     await a.startBattle();
     await a.beginBattle();
-    const store = new BattleStore(await openGameDb(name));
-    await store.saveProgress(a.view.battle!.battleId, { wave: 6, tick: 9000, kills: 12 });
+    a.view.session!.advance(200);
+    a.pause('USER');
+    await vitestFlush(() => false);
+    const battleId = a.view.battle!.battleId;
+    const tick = a.view.session!.world.tick;
 
+    await a.releaseLease();
+    const b = mk();
+    await b.boot();
+    expect(b.machine.state).toBe('BATTLE_PAUSED');
+    expect(b.view.battle!.battleId).toBe(battleId);
+    expect(b.view.session!.world.tick).toBe(tick);
+    expect([...b.view.session!.pauseReasons]).toEqual(['RESTORE']);
+    b.view.session!.advance(200);
+    expect(b.view.session!.world.tick).toBe(tick);
+    b.resume();
+    b.view.session!.advance(100);
+    expect(b.view.session!.world.tick).toBe(tick + 5);
+    expect(b.view.profile!.stamina.value).toBe(25);
+  });
+
+  it('快照不可用（例如含未知延遲事件）時：保留紀錄，以最後保存波次放棄結算，只一次', async () => {
+    const name = dbName();
+    const mk = () => new AppController({ clock: { now: () => T0 }, openDb: () => openGameDb(name), random: () => 0.7, autoRun: false, heartbeat: false });
+    const a = mk();
+    await a.boot();
+    await a.startBattle();
+    await a.beginBattle();
+    await vitestFlush(() => false);
+    const db = await openGameDb(name);
+    const rec = (await db.get('battles', ACTIVE_KEY)) as Record<string, unknown>;
+    const snap = rec.snapshot as { scheduled: unknown[] };
+    snap.scheduled.push({ due: 1, seq: 999, action: { kind: 'mysteryFx' } });
+    await db.put('battles', { ...rec, snapshot: snap, progress: { wave: 6, tick: 9000, kills: 12 } }, ACTIVE_KEY);
+
+    await a.releaseLease();
     const b = mk();
     await b.boot();
     expect(b.machine.state).toBe('PROFILE_READY');
     expect(b.view.interrupted).toBe(true);
+    expect(b.view.snapshotIssue).toContain('mysteryFx');
     await b.settleInterrupted();
     expect(b.machine.state).toBe('RESULT');
     expect(b.view.receipt!.delta).toMatchObject({ outcome: 'lose', goldDelta: 5 });
 
+    await b.releaseLease();
     const c = mk();
     await c.boot();
     expect(c.machine.state).toBe('LOBBY');

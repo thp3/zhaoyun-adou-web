@@ -3,6 +3,7 @@
 import type { Profile } from '../domain/profile/profile';
 import { PROFILE_KEY, type GameDatabase } from './db';
 import { migrateProfile } from './migrations';
+import { checkFence, StorageError, type Fence } from './errors';
 
 export type LoadResult =
   | { status: 'missing' }
@@ -10,21 +11,16 @@ export type LoadResult =
   | { status: 'corrupt'; issues: string[] }
   | { status: 'too-new'; version: number };
 
-export class StorageError extends Error {
-  constructor(
-    readonly code: 'exists' | 'missing' | 'corrupt' | 'conflict',
-    message: string,
-  ) {
-    super(message);
-    this.name = 'StorageError';
-  }
-}
+export { StorageError } from './errors';
 
 /** 回傳新 Profile 表示要提交；回傳原物件表示不需改動（不提高 revision）。 */
 export type ProfileMutation = (current: Profile) => Profile;
 
 export class ProfileRepository {
-  constructor(private readonly db: GameDatabase) {}
+  constructor(
+    private readonly db: GameDatabase,
+    private readonly fence?: Fence,
+  ) {}
 
   async load(now: number): Promise<LoadResult> {
     const tx = this.db.transaction(['profile', 'backups'], 'readwrite');
@@ -47,14 +43,15 @@ export class ProfileRepository {
 
   /** 只在沒有存檔時建立；已有任何資料（包括壞檔）都拒絕。 */
   async create(profile: Profile): Promise<Profile> {
-    const tx = this.db.transaction('profile', 'readwrite');
-    const existing = await tx.store.get(PROFILE_KEY);
+    const tx = this.db.transaction(['profile', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
+    const existing = await tx.objectStore('profile').get(PROFILE_KEY);
     if (existing !== undefined) {
       tx.abort();
       await tx.done.catch(() => undefined);
       throw new StorageError('exists', '已有存檔，不可重建');
     }
-    await tx.store.put(profile, PROFILE_KEY);
+    await tx.objectStore('profile').put(profile, PROFILE_KEY);
     await tx.done;
     return profile;
   }
@@ -63,13 +60,14 @@ export class ProfileRepository {
    * @param expectedRevision 呼叫端讀到的 revision；null 表示接受最新版（例如背景補計體力）
    */
   async update(expectedRevision: number | null, mutate: ProfileMutation): Promise<Profile> {
-    const tx = this.db.transaction('profile', 'readwrite');
+    const tx = this.db.transaction(['profile', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const fail = async (err: StorageError): Promise<never> => {
       tx.abort();
       await tx.done.catch(() => undefined);
       throw err;
     };
-    const raw = await tx.store.get(PROFILE_KEY);
+    const raw = await tx.objectStore('profile').get(PROFILE_KEY);
     if (raw === undefined) return fail(new StorageError('missing', '找不到存檔'));
     const parsed = migrateProfile(raw);
     if (parsed.kind !== 'ok' || parsed.migrated) return fail(new StorageError('corrupt', '存檔需要重新載入'));
@@ -83,7 +81,7 @@ export class ProfileRepository {
       return current;
     }
     const committed: Profile = { ...next, revision: current.revision + 1 };
-    await tx.store.put(committed, PROFILE_KEY);
+    await tx.objectStore('profile').put(committed, PROFILE_KEY);
     await tx.done;
     return committed;
   }
@@ -95,7 +93,8 @@ export class ProfileRepository {
 
   /** 玩家明確確認後：把目前原始存檔移入 backups，再寫入新檔。同一交易。 */
   async backupAndReplace(fresh: Profile, now: number, reason: string): Promise<Profile> {
-    const tx = this.db.transaction(['profile', 'backups'], 'readwrite');
+    const tx = this.db.transaction(['profile', 'backups', 'meta'], 'readwrite');
+    await checkFence(tx, this.fence);
     const raw = await tx.objectStore('profile').get(PROFILE_KEY);
     if (raw !== undefined) await tx.objectStore('backups').add({ savedAt: now, reason, raw });
     await tx.objectStore('profile').put(fresh, PROFILE_KEY);

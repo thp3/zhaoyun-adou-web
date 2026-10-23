@@ -13,7 +13,7 @@ const DAY = 86_400_000;
 const newProfile = () => createDefaultProfile(T0, '2026-10-23', { staminaMax: 30 });
 
 function makeApp(dbName: string, clock: { t: number }) {
-  return new AppController({ clock: { now: () => clock.t }, openDb: () => openGameDb(dbName) });
+  return new AppController({ clock: { now: () => clock.t }, openDb: () => openGameDb(dbName), heartbeat: false });
 }
 
 describe('ProfileRepository', () => {
@@ -73,6 +73,7 @@ describe('AppController 開頁流程', () => {
     expect(app.view.profile?.stamina.value).toBe(30);
     await app.updateSettings({ showDamageNumbers: false });
 
+    await app.releaseLease(); // 模擬關閉分頁
     const again = makeApp(name, clock);
     await again.boot();
     expect(again.view.profile?.createdAt).toBe(T0);

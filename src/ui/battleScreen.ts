@@ -132,11 +132,20 @@ export class BattleScreen {
     const wave = this.session.world.wave.wave;
     const early = wave < this.view.data!.economy.battleReward.earlySurrenderWave;
     const hidden = this.session.pauseReasons.has('PAGE_HIDDEN');
+    const restored = this.session.pauseReasons.has('RESTORE');
     return h(
       'div',
       { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': '已暫停' },
-      h('h2', null, '已暫停'),
-      h('p', { class: 'muted' }, hidden ? '切換分頁時戰鬥會自動暫停，不會在背景繼續。' : '戰鬥計時與出兵都已停止。'),
+      h('h2', null, restored ? '已恢復對局' : '已暫停'),
+      h(
+        'p',
+        { class: 'muted' },
+        restored
+          ? `已從最後保存點（第 ${this.session.world.wave.wave} 波）恢復；保存點之後的幾秒不會補回。按「繼續」開始。`
+          : hidden
+            ? '切換分頁時戰鬥會自動暫停，不會在背景繼續。'
+            : '戰鬥計時與出兵都已停止。',
+      ),
       this.confirmSurrender
         ? h(
             'div',

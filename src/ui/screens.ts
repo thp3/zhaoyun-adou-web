@@ -189,6 +189,7 @@ const RECOVERY_TEXT: Record<RecoveryReason['kind'], { title: string; body: strin
     body: '這份存檔是由較新版本的遊戲建立，目前版本無法安全讀取。請更新頁面後再試，存檔沒有被更動。',
   },
   'write-failed': { title: '寫入存檔失敗', body: '沒有保存成功，請確認瀏覽器儲存空間後重試。' },
+  'other-tab': { title: '遊戲已在其他分頁開啟', body: '' },
   'settle-failed': {
     title: '結算尚未保存',
     body: '對局結果已凍結，但寫入存檔失敗，獎勵尚未入帳。按「重試」會完成同一筆結算，不會重複發獎。',
@@ -198,6 +199,22 @@ const RECOVERY_TEXT: Record<RecoveryReason['kind'], { title: string; body: strin
 export function renderRecovery(view: AppView, ui: UiState, app: AppController, rerender: () => void): HTMLElement {
   const reason = view.recovery!;
   const text = RECOVERY_TEXT[reason.kind];
+  if (reason.kind === 'other-tab') {
+    return h(
+      'main',
+      { class: 'screen center recovery' },
+      h('h1', null, reason.lost ? '已在其他分頁繼續' : '遊戲已在其他分頁開啟'),
+      h(
+        'p',
+        null,
+        reason.lost
+          ? '另一個分頁接手了這份進度。為避免兩邊互相覆蓋，這個分頁已停止寫入；進行中的對局在那個分頁繼續。'
+          : '同一份進度一次只能在一個分頁遊玩，以免兩邊互相覆蓋。',
+      ),
+      h('p', { class: 'muted' }, '在這裡繼續會讓另一個分頁停止寫入，並從最後保存的進度接著玩。'),
+      h('div', { class: 'actions' }, h('button', { class: 'primary', onclick: () => void app.takeOver() }, '在這個分頁繼續')),
+    );
+  }
   const issues = 'issues' in reason ? reason.issues : 'message' in reason ? [reason.message] : [`存檔版本 v${reason.version}`];
   const canExport = reason.kind === 'corrupt' || reason.kind === 'too-new';
   return h(

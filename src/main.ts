@@ -8,7 +8,23 @@ import { renderLoading, renderLobby, renderRecovery, staminaHint, type UiState }
 import './ui/styles.css';
 
 const root = document.getElementById('app')!;
-const app = new AppController({ clock: systemClock, openDb: () => openGameDb() });
+const app = new AppController({ clock: systemClock, openDb: () => openGameDb(), ownerId: tabOwnerId() });
+
+/**
+ * 分頁識別：存在 sessionStorage，同一分頁重新整理後沿用，可立即取回寫入權；新分頁拿到新的。
+ * 複製分頁會帶著同一個識別，但取得寫入權時編號必定 +1，舊分頁的寫入仍會被擋下。
+ */
+function tabOwnerId(): string {
+  const fresh = `tab-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
+  try {
+    const saved = sessionStorage.getItem('zyad-owner');
+    if (saved) return saved;
+    sessionStorage.setItem('zyad-owner', fresh);
+  } catch {
+    // 無法使用 sessionStorage 時，每次載入視為新分頁
+  }
+  return fresh;
+}
 const ui: UiState = { settingsOpen: false, confirmReset: false, panels: newPanelState() };
 let latest: AppView = app.view;
 let battleUi: BattleScreen | null = null;
@@ -70,5 +86,7 @@ document.addEventListener('visibilitychange', () => {
 setInterval(() => {
   if (app.machine.state === 'LOBBY') void app.refreshDaily();
 }, 30_000);
+// 關閉或重新整理分頁時讓出寫入權，新分頁不必等租約到期（不保證一定執行，所以租約另有到期時間）
+window.addEventListener('pagehide', () => void app.releaseLease());
 
 void app.boot();

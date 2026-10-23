@@ -19,6 +19,12 @@ import type { GameDatabase } from '../storage/db';
 import { buildSaveExport, type SaveExport } from '../storage/exportSave';
 import { ProfileRepository, StorageError } from '../storage/profileRepository';
 import { BattleSession, type PauseReason } from './battleSession';
+import { restoreSnapshot, takeSnapshot } from '../domain/battle/snapshot';
+import { HEARTBEAT_MS, Lease } from '../storage/lease';
+import { ticks, type World } from '../domain/battle/types';
+
+/** 模擬時間每 5 秒保存一次快照 */
+const SNAPSHOT_EVERY_TICKS = ticks(5000);
 import { AppStateMachine, type AppState } from './stateMachine';
 
 export type RecoveryReason =
@@ -27,7 +33,9 @@ export type RecoveryReason =
   | { kind: 'corrupt'; issues: string[] }
   | { kind: 'too-new'; version: number }
   | { kind: 'write-failed'; message: string }
-  | { kind: 'settle-failed'; message: string };
+  | { kind: 'settle-failed'; message: string }
+  /** 另一個分頁持有寫入權（lost=true 表示本分頁原本持有、被接手） */
+  | { kind: 'other-tab'; lost: boolean };
 
 export interface AppView {
   state: AppState;
@@ -43,6 +51,7 @@ export interface AppView {
   interrupted: boolean;
   receipt: Receipt | null;
   busy: boolean;
+  snapshotIssue: string | null;
 }
 
 export interface AppDeps {
@@ -50,6 +59,10 @@ export interface AppDeps {
   openDb: () => Promise<GameDatabase>;
   loadData?: () => GameData;
   random?: () => number;
+  /** 本分頁識別（寫入權租約用）；預設隨機 */
+  ownerId?: string;
+  /** 是否定期續約（測試時關閉，改手動呼叫 heartbeat） */
+  heartbeat?: boolean;
   /** 是否自動啟動 requestAnimationFrame 迴圈（測試時關閉，改手動推進） */
   autoRun?: boolean;
 }
@@ -59,6 +72,15 @@ export class AppController {
   private data: GameData | null = null;
   private repo: ProfileRepository | null = null;
   private store: BattleStore | null = null;
+  private lease: Lease | null = null;
+  private readonly ownerId: string;
+  private forceTakeover = false;
+  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  private lastSnapshotTick = 0;
+  private snapshotInFlight = false;
+  private snapshotPending = false;
+  /** 未完成對局的快照無法使用時的原因（顯示在中斷畫面） */
+  private snapshotIssue: string | null = null;
   private meta: MetaStore | null = null;
   private profile: Profile | null = null;
   private recovery: RecoveryReason | null = null;
@@ -75,6 +97,7 @@ export class AppController {
   private writeQueue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly deps: AppDeps) {
+    this.ownerId = deps.ownerId ?? `tab-${Math.random().toString(36).slice(2)}-${Date.now().toString(36)}`;
     this.machine.onChange(() => this.emit());
   }
 
@@ -91,6 +114,7 @@ export class AppController {
       interrupted: this.interrupted,
       receipt: this.receipt,
       busy: this.busy,
+      snapshotIssue: this.snapshotIssue,
     };
   }
 
@@ -128,13 +152,19 @@ export class AppController {
     let db: GameDatabase;
     try {
       db = await this.deps.openDb();
-      this.repo = new ProfileRepository(db);
-      this.store = new BattleStore(db);
-      this.meta = new MetaStore(db);
     } catch (e) {
       return this.fail({ kind: 'storage-unavailable', message: errorText(e) });
     }
     const now = this.deps.clock.now();
+    // 先取得寫入權：另一個分頁仍在使用時不讀寫進度，讓玩家決定是否接手
+    this.lease = new Lease(db, this.ownerId);
+    const got = await this.lease.acquire(now, this.forceTakeover);
+    this.forceTakeover = false;
+    if (got.kind === 'busy') return this.fail({ kind: 'other-tab', lost: false });
+    this.repo = new ProfileRepository(db, this.lease.fence);
+    this.store = new BattleStore(db, this.lease.fence);
+    this.meta = new MetaStore(db, this.lease.fence);
+    this.startHeartbeat();
     let result;
     try {
       result = await this.repo.load(now);
@@ -172,8 +202,105 @@ export class AppController {
       await this.settleActive();
       return;
     }
-    // STARTED：M6 前沒有完整快照，停在 PROFILE_READY 讓玩家確認以放棄結算
+    // STARTED：有可用快照就恢復到暫停畫面；沒有（或快照不可用）才請玩家以放棄結算
+    const snap = restoreSnapshot(b.snapshot);
+    if (snap.ok && b.rulesetVersion === this.data!.manifest.rulesetVersion) {
+      this.attachSession(snap.world);
+      this.session!.pause('RESTORE');
+      this.lastSnapshotTick = snap.world.tick;
+      this.machine.go('BATTLE_PAUSED');
+      if (this.deps.autoRun !== false) this.session!.start();
+      return;
+    }
+    this.snapshotIssue = snap.ok ? '規則版本已更新，無法沿用舊快照' : b.snapshot === undefined ? null : snap.reason;
     this.interrupted = true;
+    this.emit();
+  }
+
+  /** 建立對局執行器；舊執行器的回呼一律以「是否仍是目前執行器」過濾，避免舊局事件改到新局 */
+  private attachSession(world: World): void {
+    this.session?.stop();
+    const session: BattleSession = new BattleSession(world, { data: this.data! }, {
+      onEvents: (events) => {
+        if (this.session === session) this.handleBattleEvents(events);
+      },
+      onEnded: (result) => {
+        if (this.session === session) void this.finishBattle(result);
+      },
+      onStepped: (w) => {
+        if (this.session === session && w.tick - this.lastSnapshotTick >= SNAPSHOT_EVERY_TICKS) this.saveSnapshot();
+      },
+    });
+    this.session = session;
+  }
+
+  /** 保存快照（模擬時間每 5 秒、暫停、切頁、新的一波）；保存中則略過這次 */
+  private saveSnapshot(): void {
+    const b = this.battle;
+    const s = this.session;
+    if (!b || !s || !this.store || s.world.result) return;
+    // 前一份還在寫：記下來，寫完後補存最新狀態（暫停、切頁的快照不能丟）
+    if (this.snapshotInFlight) {
+      this.snapshotPending = true;
+      return;
+    }
+    const snap = takeSnapshot(s.world);
+    const progress = { wave: snap.wave.wave, tick: snap.tick, kills: snap.camps[0].kills };
+    this.lastSnapshotTick = snap.tick;
+    this.snapshotInFlight = true;
+    void this.serial(() => this.store!.saveSnapshot(b.battleId, snap, progress))
+      .then(() => {
+        this.lastSavedAt = this.deps.clock.now();
+      })
+      .catch((e) => this.onStorageError(e, '對局進度保存失敗，稍後會再試。'))
+      .finally(() => {
+        this.snapshotInFlight = false;
+        if (this.snapshotPending && this.session === s) {
+          this.snapshotPending = false;
+          this.saveSnapshot();
+        }
+      });
+  }
+
+  // ---------------- 寫入權 ----------------
+
+  private startHeartbeat(): void {
+    if (this.deps.heartbeat === false || this.heartbeatTimer) return;
+    this.heartbeatTimer = setInterval(() => void this.heartbeat(), HEARTBEAT_MS);
+  }
+
+  /** 續約；失敗代表另一分頁已接手 */
+  async heartbeat(): Promise<void> {
+    if (!this.lease || this.lease.fence.token === null) return;
+    const ok = await this.lease.heartbeat(this.deps.clock.now()).catch(() => true);
+    if (!ok) this.ownershipLost();
+  }
+
+  /** 「在這個分頁繼續」：接手寫入權後重新讀檔 */
+  async takeOver(): Promise<void> {
+    if (this.recovery?.kind !== 'other-tab') return;
+    this.forceTakeover = true;
+    await this.retry();
+  }
+
+  /** 正常關閉分頁時讓出寫入權 */
+  async releaseLease(): Promise<void> {
+    await this.lease?.release().catch(() => undefined);
+  }
+
+  private ownershipLost(): void {
+    if (this.recovery?.kind === 'other-tab') return;
+    if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer = null;
+    this.session?.pause('OWNERSHIP_LOST');
+    this.session?.stop();
+    this.session = null;
+    this.fail({ kind: 'other-tab', lost: true });
+  }
+
+  private onStorageError(e: unknown, text: string): void {
+    if (isOwnershipError(e)) return this.ownershipLost();
+    this.notice = text;
     this.emit();
   }
 
@@ -345,6 +472,10 @@ export class AppController {
       }
     } catch (e) {
       // 交易沒有完成：未扣體力
+      if (isOwnershipError(e)) {
+        this.machine.go('LOBBY');
+        return this.ownershipLost();
+      }
       this.notice = `無法開局：${errorText(e)}`;
       this.machine.go('LOBBY');
     } finally {
@@ -385,13 +516,12 @@ export class AppController {
       return;
     }
     const world = createWorld({ data: this.data, ...b.setup });
-    this.session = new BattleSession(world, { data: this.data }, {
-      onEvents: (events) => this.handleBattleEvents(events),
-      onEnded: (result) => void this.finishBattle(result),
-    });
+    this.attachSession(world);
+    this.lastSnapshotTick = 0;
+    this.saveSnapshot();
     this.machine.go('BATTLE_READY');
     this.machine.go('BATTLE_RUNNING');
-    if (this.deps.autoRun !== false) this.session.start();
+    if (this.deps.autoRun !== false) this.session!.start();
     this.setBusy(false);
   }
 
@@ -401,6 +531,8 @@ export class AppController {
     const s = this.session;
     if (!s) return;
     s.pause(reason);
+    // 暫停與切頁時盡力保存（關閉分頁的回呼不保證執行，所以平時也定期保存）
+    this.saveSnapshot();
     if (this.machine.state === 'BATTLE_RUNNING') this.machine.go('BATTLE_PAUSED');
     else this.emit();
   }
@@ -425,13 +557,8 @@ export class AppController {
     const b = this.battle;
     const s = this.session;
     if (!b || !s || !this.store) return;
-    if (events.some((e) => e.type === 'waveStart')) {
-      const progress = { wave: s.world.wave.wave, tick: s.world.tick, kills: s.world.camps[0].kills };
-      void this.serial(() => this.store!.saveProgress(b.battleId, progress)).catch(() => {
-        this.notice = '進度保存失敗，將於下一波重試。';
-        this.emit();
-      });
-    }
+    // 新的一波開始時也存一份
+    if (events.some((e) => e.type === 'waveStart')) this.saveSnapshot();
   }
 
   // ---------------- 結算 ----------------
@@ -471,9 +598,9 @@ export class AppController {
       wave: b.progress.wave,
       tick: b.progress.tick,
       kills: b.progress.kills,
-      // 沒有快照：中途掉落無法還原（M6 補上）
-      drops: [],
-      formed: [],
+      // 快照不可續玩時，仍沿用其中已確認的掉落與圖鑑
+      drops: Array.isArray((b.snapshot as Partial<World> | undefined)?.drops) ? (b.snapshot as World).drops.filter((x) => Number.isInteger(x)) : [],
+      formed: Array.isArray((b.snapshot as Partial<World> | undefined)?.formed) ? (b.snapshot as World).formed.filter((x) => typeof x === 'string') : [],
     });
   }
 
@@ -482,6 +609,7 @@ export class AppController {
       const rec = await this.serial(() => this.store!.markSettlementPending(draft));
       if (rec) this.battle = rec;
     } catch (e) {
+      if (isOwnershipError(e)) return this.ownershipLost();
       return this.fail({ kind: 'settle-failed', message: errorText(e) });
     }
     await this.settleActive();
@@ -499,6 +627,7 @@ export class AppController {
       this.receipt = out.receipt;
       this.lastSavedAt = this.deps.clock.now();
     } catch (e) {
+      if (isOwnershipError(e)) return this.ownershipLost();
       return this.fail({ kind: 'settle-failed', message: errorText(e) });
     }
     this.battle = null;
@@ -559,6 +688,7 @@ export class AppController {
           this.emit();
           return;
         }
+        if (isOwnershipError(e)) return this.ownershipLost();
         this.notice = `存檔失敗：${errorText(e)}`;
         this.emit();
       }
@@ -568,13 +698,18 @@ export class AppController {
   private fail(reason: RecoveryReason): void {
     this.recovery = reason;
     this.session?.stop();
-    this.machine.go('RECOVERY');
+    if (this.machine.state !== 'RECOVERY') this.machine.go('RECOVERY');
+    else this.emit();
   }
 
   private emit(): void {
     const v = this.view;
     for (const fn of this.listeners) fn(v);
   }
+}
+
+function isOwnershipError(e: unknown): boolean {
+  return e instanceof StorageError && e.code === 'ownership';
 }
 
 function errorText(e: unknown): string {

@@ -3,7 +3,7 @@
 import { stepWorld } from '../domain/battle/step';
 import { TICK_MS, type BattleCommand, type BattleEvent, type BattleResult, type BattleRules, type World } from '../domain/battle/types';
 
-export type PauseReason = 'USER' | 'PAGE_HIDDEN' | 'RESTORE' | 'STORAGE_ERROR';
+export type PauseReason = 'USER' | 'PAGE_HIDDEN' | 'RESTORE' | 'STORAGE_ERROR' | 'OWNERSHIP_LOST';
 
 /** 單一 frame 最多補幾個 tick；超過代表裝置太慢，丟棄而不是暴衝 */
 const MAX_STEPS_PER_FRAME = 10;
@@ -13,6 +13,8 @@ export interface SessionHooks {
   onEvents?: (events: BattleEvent[]) => void;
   onEnded?: (result: BattleResult) => void;
   onFrame?: () => void;
+  /** 每次實際推進後呼叫（快照節奏用） */
+  onStepped?: (world: World) => void;
 }
 
 export class BattleSession {
@@ -90,5 +92,6 @@ export class BattleSession {
       }
     }
     if (steps >= MAX_STEPS_PER_FRAME) this.acc = 0;
+    if (steps > 0) this.hooks.onStepped?.(this.world);
   }
 }
