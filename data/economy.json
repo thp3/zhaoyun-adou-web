@@ -1,0 +1,23 @@
+{
+  "stamina": {
+    "max": 30,
+    "recoverIntervalMs": 300000,
+    "battleCost": 5,
+    "videoReward": 10,
+    "shareReward": 5,
+    "shareDailyLimit": 5,
+    "shareCooldownMs": 1800000,
+    "marchPillReward": 10
+  },
+  "battleReward": {
+    "winGold": 20,
+    "loseGold": 5,
+    "earlySurrenderWave": 5
+  },
+  "battleStart": {
+    "playerGold": 20,
+    "aiGold": 30,
+    "startCooldownMs": 5000
+  },
+  "calendarZone": "Asia/Taipei"
+}

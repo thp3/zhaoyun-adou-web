@@ -1,0 +1,333 @@
+{
+  "generals": [
+    {
+      "id": 0,
+      "key": "zhaoyun",
+      "name": "趙雲",
+      "chars": [
+        "zhao",
+        "yun"
+      ],
+      "weaponType": 1,
+      "damage": 2,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 0.8,
+      "highTier": true,
+      "maxLevel": 5,
+      "attackShape": "快攻贯穿",
+      "targetRule": "closest_end",
+      "aiValue": 14,
+      "skill": {
+        "skill": "hn",
+        "triggerAttacks": 30
+      }
+    },
+    {
+      "id": 1,
+      "key": "zhangfei",
+      "name": "張飛",
+      "chars": [
+        "zhang",
+        "fei"
+      ],
+      "weaponType": 1,
+      "damage": 10,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": true,
+      "maxLevel": 5,
+      "attackShape": "范围",
+      "targetRule": "nearest",
+      "aiValue": 15,
+      "skill": {
+        "skill": "Ca",
+        "triggerAttacks": 15,
+        "stunMs": 2000
+      }
+    },
+    {
+      "id": 2,
+      "key": "machao",
+      "name": "馬超",
+      "chars": [
+        "ma",
+        "chao"
+      ],
+      "weaponType": 1,
+      "damage": 10,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": true,
+      "maxLevel": 5,
+      "attackShape": "单体",
+      "targetRule": "nearest",
+      "aiValue": 13,
+      "skill": {
+        "skill": "Oa",
+        "triggerAttacks": 0
+      }
+    },
+    {
+      "id": 3,
+      "key": "guanyu",
+      "name": "關羽",
+      "chars": [
+        "guan",
+        "yu"
+      ],
+      "weaponType": 2,
+      "damage": 20,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": true,
+      "maxLevel": 5,
+      "attackShape": "单体",
+      "targetRule": "nearest",
+      "aiValue": 15,
+      "skill": {
+        "skill": "ta",
+        "triggerAttacks": 20
+      }
+    },
+    {
+      "id": 4,
+      "key": "huangzhong",
+      "name": "黃忠",
+      "chars": [
+        "huang",
+        "zhong"
+      ],
+      "weaponType": 0,
+      "damage": 6,
+      "rangeCells": 4.5,
+      "altRangeCells": 5.5,
+      "intervalSec": 0.8,
+      "highTier": true,
+      "maxLevel": 5,
+      "attackShape": "贯穿",
+      "targetRule": "nearest",
+      "aiValue": 13,
+      "skill": {
+        "skill": "Na",
+        "triggerAttacks": 30
+      }
+    },
+    {
+      "id": 5,
+      "key": "guanping",
+      "name": "關平",
+      "chars": [
+        "guan",
+        "ping"
+      ],
+      "weaponType": 2,
+      "damage": 3,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": false,
+      "maxLevel": 3,
+      "attackShape": "范围",
+      "targetRule": "nearest",
+      "aiValue": 12,
+      "skill": {
+        "skill": "Ca",
+        "triggerAttacks": 15,
+        "stunMs": 1000
+      }
+    },
+    {
+      "id": 6,
+      "key": "guanxing",
+      "name": "關興",
+      "chars": [
+        "guan",
+        "xing"
+      ],
+      "weaponType": 2,
+      "damage": 7,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": false,
+      "maxLevel": 3,
+      "attackShape": "单体",
+      "targetRule": "closest_end",
+      "aiValue": 12,
+      "skill": {
+        "skill": "Oa",
+        "triggerAttacks": 0
+      }
+    },
+    {
+      "id": 7,
+      "key": "zhangbao",
+      "name": "張苞",
+      "chars": [
+        "zhang",
+        "bao"
+      ],
+      "weaponType": 1,
+      "damage": 7,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": false,
+      "maxLevel": 3,
+      "attackShape": "单体",
+      "targetRule": "closest_end",
+      "aiValue": 12,
+      "skill": {
+        "skill": "Oa",
+        "triggerAttacks": 0
+      }
+    },
+    {
+      "id": 8,
+      "key": "zhangyi",
+      "name": "張翼",
+      "chars": [
+        "zhang",
+        "yi"
+      ],
+      "weaponType": 3,
+      "damage": 7,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": false,
+      "maxLevel": 3,
+      "attackShape": "单体",
+      "targetRule": "closest_end",
+      "aiValue": 12,
+      "skill": {
+        "skill": "ta",
+        "triggerAttacks": 20
+      }
+    },
+    {
+      "id": 9,
+      "key": "huanggai",
+      "name": "黃蓋",
+      "chars": [
+        "huang",
+        "gai"
+      ],
+      "weaponType": 3,
+      "damage": 8,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 1,
+      "highTier": false,
+      "maxLevel": 3,
+      "attackShape": "单体",
+      "targetRule": "nearest",
+      "aiValue": 12,
+      "skill": null
+    },
+    {
+      "id": 10,
+      "key": "liubei",
+      "name": "劉備",
+      "chars": [
+        "liu",
+        "bei"
+      ],
+      "weaponType": 3,
+      "damage": 10,
+      "rangeCells": 2.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 0.8,
+      "highTier": true,
+      "maxLevel": 5,
+      "attackShape": "单体",
+      "targetRule": "nearest",
+      "aiValue": 13,
+      "skill": {
+        "skill": "Ha",
+        "triggerAttacks": 20
+      }
+    },
+    {
+      "id": 11,
+      "key": "huangzu",
+      "name": "黃祖",
+      "chars": [
+        "huang",
+        "zu"
+      ],
+      "weaponType": 0,
+      "damage": 6,
+      "rangeCells": 3.5,
+      "altRangeCells": 3.5,
+      "intervalSec": 0.8,
+      "highTier": false,
+      "maxLevel": 3,
+      "attackShape": "单体",
+      "targetRule": "closest_end",
+      "aiValue": 12,
+      "skill": {
+        "skill": "qa",
+        "triggerAttacks": 30
+      }
+    }
+  ],
+  "expHighTier": [
+    0,
+    10,
+    35,
+    75,
+    130
+  ],
+  "expNormalTier": [
+    0,
+    8,
+    23
+  ],
+  "killCredit": {
+    "killerExp": 1,
+    "assistPoolByGeneral": 0.5,
+    "assistPoolByOther": 0.2
+  },
+  "skills": [
+    {
+      "id": "ta",
+      "name": "跳斬",
+      "description": "接下來數次攻擊為跳斬，每次攻擊對周圍造成50％濺射傷害"
+    },
+    {
+      "id": "Ca",
+      "name": "大喝",
+      "description": "大喝一聲，砸暈一圈敵人，暈眩2秒"
+    },
+    {
+      "id": "Oa",
+      "name": "暈眩",
+      "description": "每次攻擊概率造成敵人眩暈"
+    },
+    {
+      "id": "Ha",
+      "name": "聖劍",
+      "description": "釋放一柄聖劍，造成範圍傷害，並擊倒敵人"
+    },
+    {
+      "id": "Na",
+      "name": "火箭烈",
+      "description": "射出大量火箭轟炸敵人"
+    },
+    {
+      "id": "qa",
+      "name": "箭雨",
+      "description": "射出大量箭雨"
+    },
+    {
+      "id": "hn",
+      "name": "七進七出",
+      "description": "釋放一個幻象衝進敵群，以亂刺狀態來回突進七次"
+    }
+  ]
+}

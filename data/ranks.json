@@ -1,0 +1,1245 @@
+{
+  "ranks": [
+    {
+      "id": 0,
+      "name": "軍士.一",
+      "level": 5,
+      "reward": 10,
+      "addHp": 0,
+      "aiWeaponRarityCount": [
+        5,
+        1,
+        0,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        5,
+        1,
+        1,
+        0
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 1,
+      "name": "軍士.二",
+      "level": 5,
+      "reward": 14,
+      "addHp": 0,
+      "aiWeaponRarityCount": [
+        5,
+        1,
+        0,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        4,
+        2,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 2,
+      "name": "軍士.三",
+      "level": 5,
+      "reward": 18,
+      "addHp": 0,
+      "aiWeaponRarityCount": [
+        5,
+        1,
+        0,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        4,
+        2,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 3,
+      "name": "軍士.四",
+      "level": 5,
+      "reward": 22,
+      "addHp": 0,
+      "aiWeaponRarityCount": [
+        5,
+        1,
+        0,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        4,
+        2,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 4,
+      "name": "軍士.五",
+      "level": 5,
+      "reward": 26,
+      "addHp": 0,
+      "aiWeaponRarityCount": [
+        5,
+        1,
+        0,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        3,
+        2,
+        2
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 5,
+      "name": "校尉.一",
+      "level": 5,
+      "reward": 30,
+      "addHp": 0.05,
+      "aiWeaponRarityCount": [
+        4,
+        4,
+        2,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        3,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 6,
+      "name": "校尉.二",
+      "level": 5,
+      "reward": 34,
+      "addHp": 0.05,
+      "aiWeaponRarityCount": [
+        4,
+        4,
+        2,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        3,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 7,
+      "name": "校尉.三",
+      "level": 5,
+      "reward": 38,
+      "addHp": 0.05,
+      "aiWeaponRarityCount": [
+        4,
+        4,
+        2,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        3,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 8,
+      "name": "校尉.四",
+      "level": 5,
+      "reward": 42,
+      "addHp": 0.05,
+      "aiWeaponRarityCount": [
+        4,
+        4,
+        2,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        3,
+        2,
+        1
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 9,
+      "name": "校尉.五",
+      "level": 5,
+      "reward": 46,
+      "addHp": 0.1,
+      "aiWeaponRarityCount": [
+        4,
+        4,
+        2,
+        0,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        3,
+        2,
+        3
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 10,
+      "name": "少將.一",
+      "level": 5,
+      "reward": 50,
+      "addHp": 0.1,
+      "aiWeaponRarityCount": [
+        3,
+        3,
+        3,
+        2,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 11,
+      "name": "少將.二",
+      "level": 5,
+      "reward": 54,
+      "addHp": 0.1,
+      "aiWeaponRarityCount": [
+        3,
+        3,
+        3,
+        2,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 12,
+      "name": "少將.三",
+      "level": 5,
+      "reward": 58,
+      "addHp": 0.1,
+      "aiWeaponRarityCount": [
+        3,
+        3,
+        3,
+        2,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 13,
+      "name": "少將.四",
+      "level": 5,
+      "reward": 62,
+      "addHp": 0.1,
+      "aiWeaponRarityCount": [
+        3,
+        3,
+        3,
+        2,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 14,
+      "name": "少將.五",
+      "level": 5,
+      "reward": 66,
+      "addHp": 0.1,
+      "aiWeaponRarityCount": [
+        3,
+        3,
+        3,
+        2,
+        0
+      ],
+      "difficultyWeights": [
+        3,
+        2,
+        3,
+        3
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 15,
+      "name": "中將.一",
+      "level": 5,
+      "reward": 70,
+      "addHp": 0.15,
+      "aiWeaponRarityCount": [
+        0,
+        3,
+        4,
+        2,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 16,
+      "name": "中將.二",
+      "level": 5,
+      "reward": 74,
+      "addHp": 0.15,
+      "aiWeaponRarityCount": [
+        0,
+        3,
+        4,
+        2,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 17,
+      "name": "中將.三",
+      "level": 5,
+      "reward": 78,
+      "addHp": 0.15,
+      "aiWeaponRarityCount": [
+        0,
+        3,
+        4,
+        2,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 18,
+      "name": "中將.四",
+      "level": 5,
+      "reward": 82,
+      "addHp": 0.15,
+      "aiWeaponRarityCount": [
+        0,
+        3,
+        4,
+        2,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 19,
+      "name": "中將.五",
+      "level": 5,
+      "reward": 86,
+      "addHp": 0.15,
+      "aiWeaponRarityCount": [
+        0,
+        3,
+        4,
+        2,
+        2
+      ],
+      "difficultyWeights": [
+        2,
+        3,
+        3,
+        3
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 20,
+      "name": "上將.一",
+      "level": 5,
+      "reward": 90,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        2,
+        4,
+        3,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 21,
+      "name": "上將.二",
+      "level": 5,
+      "reward": 94,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        2,
+        4,
+        3,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 22,
+      "name": "上將.三",
+      "level": 5,
+      "reward": 98,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        2,
+        4,
+        3,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 23,
+      "name": "上將.四",
+      "level": 5,
+      "reward": 102,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        2,
+        4,
+        3,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 24,
+      "name": "上將.五",
+      "level": 5,
+      "reward": 106,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        2,
+        4,
+        3,
+        2
+      ],
+      "difficultyWeights": [
+        2,
+        2,
+        4,
+        3
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 25,
+      "name": "大將.一",
+      "level": 5,
+      "reward": 110,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        1,
+        4,
+        4,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 26,
+      "name": "大將.二",
+      "level": 5,
+      "reward": 114,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        1,
+        4,
+        4,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 27,
+      "name": "大將.三",
+      "level": 5,
+      "reward": 118,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        1,
+        4,
+        4,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 28,
+      "name": "大將.四",
+      "level": 5,
+      "reward": 122,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        1,
+        4,
+        4,
+        2
+      ],
+      "difficultyWeights": [
+        3,
+        4,
+        2,
+        1
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 29,
+      "name": "大將.五",
+      "level": 5,
+      "reward": 126,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        1,
+        4,
+        4,
+        2
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        5,
+        3
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 30,
+      "name": "元帥.一",
+      "level": 5,
+      "reward": 130,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        3,
+        5,
+        3
+      ],
+      "difficultyWeights": [
+        2,
+        4,
+        2,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 31,
+      "name": "元帥.二",
+      "level": 5,
+      "reward": 134,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        3,
+        5,
+        3
+      ],
+      "difficultyWeights": [
+        2,
+        4,
+        2,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 32,
+      "name": "元帥.三",
+      "level": 5,
+      "reward": 138,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        3,
+        5,
+        3
+      ],
+      "difficultyWeights": [
+        2,
+        4,
+        2,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 33,
+      "name": "元帥.四",
+      "level": 5,
+      "reward": 142,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        3,
+        5,
+        3
+      ],
+      "difficultyWeights": [
+        2,
+        4,
+        2,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 34,
+      "name": "元帥.五",
+      "level": 5,
+      "reward": 146,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        3,
+        5,
+        3
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        5,
+        3
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 35,
+      "name": "諸侯.一",
+      "level": 5,
+      "reward": 150,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        2,
+        5,
+        4
+      ],
+      "difficultyWeights": [
+        2,
+        2,
+        4,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 36,
+      "name": "諸侯.二",
+      "level": 5,
+      "reward": 154,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        2,
+        5,
+        4
+      ],
+      "difficultyWeights": [
+        2,
+        2,
+        4,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 37,
+      "name": "諸侯.三",
+      "level": 5,
+      "reward": 158,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        2,
+        5,
+        4
+      ],
+      "difficultyWeights": [
+        2,
+        2,
+        4,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 38,
+      "name": "諸侯.四",
+      "level": 5,
+      "reward": 162,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        2,
+        5,
+        4
+      ],
+      "difficultyWeights": [
+        2,
+        2,
+        4,
+        2
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 39,
+      "name": "諸侯.五",
+      "level": 5,
+      "reward": 166,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        2,
+        5,
+        4
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        5,
+        3
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 40,
+      "name": "霸主.一",
+      "level": 5,
+      "reward": 170,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        6,
+        5
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        4,
+        3
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 41,
+      "name": "霸主.二",
+      "level": 5,
+      "reward": 174,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        6,
+        5
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        4,
+        3
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 42,
+      "name": "霸主.三",
+      "level": 5,
+      "reward": 178,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        6,
+        5
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        4,
+        3
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 43,
+      "name": "霸主.四",
+      "level": 5,
+      "reward": 182,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        6,
+        5
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        4,
+        3
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 44,
+      "name": "霸主.五",
+      "level": 5,
+      "reward": 186,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        6,
+        5
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        4,
+        3
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 45,
+      "name": "君主.一",
+      "level": 5,
+      "reward": 190,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        4,
+        7
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "mapLabel": "虎牢關"
+    },
+    {
+      "id": 46,
+      "name": "君主.二",
+      "level": 5,
+      "reward": 194,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        4,
+        7
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 47,
+      "name": "君主.三",
+      "level": 5,
+      "reward": 198,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        4,
+        7
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "mapLabel": "赤壁"
+    },
+    {
+      "id": 48,
+      "name": "君主.四",
+      "level": 5,
+      "reward": 202,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        4,
+        7
+      ],
+      "difficultyWeights": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 49,
+      "name": "君主.五",
+      "level": 5,
+      "reward": 206,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        4,
+        7
+      ],
+      "difficultyWeights": [
+        1,
+        1,
+        2,
+        6
+      ],
+      "mapLabel": "巨鹿"
+    },
+    {
+      "id": 50,
+      "name": "皇帝",
+      "level": 25,
+      "reward": 250,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        2,
+        9
+      ],
+      "difficultyWeights": [
+        1,
+        1,
+        2,
+        6
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 51,
+      "name": "皇帝",
+      "level": 50,
+      "reward": 250,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        1,
+        10
+      ],
+      "difficultyWeights": [
+        1,
+        1,
+        2,
+        6
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 52,
+      "name": "皇帝",
+      "level": 75,
+      "reward": 250,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        0,
+        11
+      ],
+      "difficultyWeights": [
+        1,
+        1,
+        2,
+        6
+      ],
+      "mapLabel": "雲夢澤"
+    },
+    {
+      "id": 53,
+      "name": "皇帝",
+      "level": 100,
+      "reward": 250,
+      "addHp": 0.2,
+      "aiWeaponRarityCount": [
+        0,
+        0,
+        0,
+        0,
+        11
+      ],
+      "difficultyWeights": [
+        1,
+        1,
+        2,
+        6
+      ],
+      "mapLabel": "雲夢澤"
+    }
+  ],
+  "starsPerRank": 5,
+  "emperorStarBase": 250,
+  "emperorStages": [
+    25,
+    50,
+    75
+  ],
+  "opponent": {
+    "groupStartRankIds": [
+      0,
+      5,
+      10,
+      15
+    ],
+    "starDiffRanges": [
+      [
+        -25,
+        -21
+      ],
+      [
+        -20,
+        -16
+      ],
+      [
+        -15,
+        -11
+      ],
+      [
+        -10,
+        -6
+      ],
+      [
+        -5,
+        -1
+      ],
+      [
+        0,
+        5
+      ],
+      [
+        6,
+        10
+      ],
+      [
+        11,
+        15
+      ],
+      [
+        16,
+        20
+      ],
+      [
+        21,
+        25
+      ]
+    ],
+    "starDiffWeightsByGroup": [
+      [
+        0,
+        0,
+        0,
+        0,
+        10,
+        10,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        2,
+        4,
+        10,
+        10,
+        5,
+        3,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        2,
+        4,
+        10,
+        10,
+        5,
+        3,
+        2,
+        1
+      ],
+      [
+        1,
+        1,
+        2,
+        4,
+        10,
+        10,
+        6,
+        4,
+        3,
+        2
+      ]
+    ]
+  }
+}

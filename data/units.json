@@ -1,0 +1,64 @@
+{
+  "soldiers": [
+    {
+      "id": "blade",
+      "soldierType": 0,
+      "damage": 3,
+      "rangeCells": 1.5,
+      "intervalSec": 0.8,
+      "attackShape": "single",
+      "targetRule": "nearest"
+    },
+    {
+      "id": "bow",
+      "soldierType": 1,
+      "damage": 2,
+      "rangeCells": 3.5,
+      "intervalSec": 0.8,
+      "attackShape": "single",
+      "targetRule": "closest_end"
+    },
+    {
+      "id": "spear",
+      "soldierType": 2,
+      "damage": 2,
+      "rangeCells": 2.5,
+      "intervalSec": 0.8,
+      "attackShape": "pierce",
+      "targetRule": "nearest"
+    },
+    {
+      "id": "cavalry",
+      "soldierType": 3,
+      "damage": 2,
+      "rangeCells": 2,
+      "intervalSec": 0.8,
+      "attackShape": "area",
+      "targetRule": "nearest"
+    }
+  ],
+  "soldierMaxLevel": 5,
+  "soldierLevelMultiplier": [
+    1,
+    1.5,
+    2.1,
+    2.73,
+    3.4125
+  ],
+  "farmer": {
+    "maxLevel": 5,
+    "periodMsByLevel": [
+      20000,
+      10000,
+      5000,
+      3000,
+      2000
+    ],
+    "goldPerHarvest": 1,
+    "crazy": {
+      "intervalMs": 1000,
+      "durationMs": 10000
+    },
+    "siltGoldMultiplier": 1.2
+  }
+}

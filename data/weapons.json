@@ -1,0 +1,655 @@
+{
+  "types": [
+    "bow",
+    "spear",
+    "blade",
+    "sword"
+  ],
+  "typeNames": [
+    "弓",
+    "槍",
+    "刀",
+    "劍"
+  ],
+  "rarityNames": [
+    "普通",
+    "稀有",
+    "卓越",
+    "史詩",
+    "傳說"
+  ],
+  "rarityColors": [
+    "#ffffff",
+    "#69e91e",
+    "#29d1fb",
+    "#a351ff",
+    "#e99431"
+  ],
+  "defaults": [
+    {
+      "type": 0
+    },
+    {
+      "type": 2
+    },
+    {
+      "type": 1
+    },
+    {
+      "type": 3
+    }
+  ],
+  "weapons": [
+    {
+      "id": 0,
+      "type": 0,
+      "name": "短弓",
+      "shortName": "短",
+      "rarity": 0,
+      "addAttPower": 1,
+      "fragmentsRequired": 1,
+      "exclusive": null,
+      "intro": "一把樸實無華的短弓",
+      "summary": "普通追蹤弓箭，1×傷害"
+    },
+    {
+      "id": 1,
+      "type": 0,
+      "name": "長弓",
+      "shortName": "長",
+      "rarity": 1,
+      "addAttPower": 2,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "攻擊距離+0.5",
+      "summary": "射程固定+0.5格"
+    },
+    {
+      "id": 2,
+      "type": 0,
+      "name": "鐵弓",
+      "shortName": "鐵",
+      "rarity": 1,
+      "addAttPower": 2,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "10%概率擊退",
+      "summary": "每次發射10%附擊退"
+    },
+    {
+      "id": 3,
+      "type": 0,
+      "name": "角弓",
+      "shortName": "角",
+      "rarity": 2,
+      "addAttPower": 3,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "攻擊同一個單位時，每攻擊一次，攻速+5%",
+      "summary": "同目標每次+0.05，累計上限20"
+    },
+    {
+      "id": 4,
+      "type": 0,
+      "name": "射鵰弓",
+      "shortName": "鵰",
+      "rarity": 3,
+      "addAttPower": 4,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "10%概率打出一隻緩慢飛行的老鷹，對沿途敵人造成傷害",
+      "summary": "10%改射3×穿透老鷹"
+    },
+    {
+      "id": 5,
+      "type": 0,
+      "name": "鐵胎弓",
+      "shortName": "胎",
+      "rarity": 3,
+      "addAttPower": 5,
+      "fragmentsRequired": 4,
+      "exclusive": "黃忠",
+      "intro": "10%概率打出一道火龍，點燃路徑；專屬：黃忠的技能效果翻倍",
+      "summary": "10%火龍；尾部留下約5秒地火"
+    },
+    {
+      "id": 6,
+      "type": 0,
+      "name": "神臂弓",
+      "shortName": "神",
+      "rarity": 3,
+      "addAttPower": 5,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "攻擊同一個單位時，每攻擊一次，攻速+15%",
+      "summary": "同目標+0.15、上限20；主箭另生3拳"
+    },
+    {
+      "id": 7,
+      "type": 0,
+      "name": "霸王弓",
+      "shortName": "霸",
+      "rarity": 4,
+      "addAttPower": 6,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "每擊中一個單位，有50%概率彈射一次",
+      "summary": "每次命中有多輪獨立50%生成閃電鏈"
+    },
+    {
+      "id": 8,
+      "type": 0,
+      "name": "落日弓",
+      "shortName": "落",
+      "rarity": 4,
+      "addAttPower": 6,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "攻擊距離翻倍，且攻擊距離越遠，傷害越高",
+      "summary": "基礎射程翻倍；鳳凰距離增傷最高2×"
+    },
+    {
+      "id": 9,
+      "type": 0,
+      "name": "諸葛連弩",
+      "shortName": "弩",
+      "rarity": 4,
+      "addAttPower": 6,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "每射擊10次，會射出10支火箭",
+      "summary": "10次普通射擊後，下次計時火箭掃射"
+    },
+    {
+      "id": 10,
+      "type": 1,
+      "name": "短槍",
+      "shortName": "短",
+      "rarity": 0,
+      "addAttPower": 1,
+      "fragmentsRequired": 1,
+      "exclusive": null,
+      "intro": "一把樸實無華的短槍",
+      "summary": "普通槍擊；依武將切攻擊模式"
+    },
+    {
+      "id": 11,
+      "type": 1,
+      "name": "長槍",
+      "shortName": "長",
+      "rarity": 1,
+      "addAttPower": 2,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "攻擊距離+0.5",
+      "summary": "射程固定+0.5格"
+    },
+    {
+      "id": 12,
+      "type": 1,
+      "name": "鐵槍",
+      "shortName": "鐵",
+      "rarity": 1,
+      "addAttPower": 3,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "首次攻擊某個單位時，20%幾率從地下戳出1個槍陣",
+      "summary": "新敵首個命中20%：追加2×、穿刺0.5秒"
+    },
+    {
+      "id": 13,
+      "type": 1,
+      "name": "大戟",
+      "shortName": "大",
+      "rarity": 2,
+      "addAttPower": 4,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "攻擊距離+1",
+      "summary": "射程固定+1格"
+    },
+    {
+      "id": 14,
+      "type": 1,
+      "name": "鉤鐮槍",
+      "shortName": "鉤",
+      "rarity": 2,
+      "addAttPower": 4,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "首次攻擊某個單位時，20%幾率使之跌倒",
+      "summary": "新敵首次命中20%跌倒2秒"
+    },
+    {
+      "id": 15,
+      "type": 1,
+      "name": "點鋼槍",
+      "shortName": "點",
+      "rarity": 3,
+      "addAttPower": 5,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "每擊殺一個敵人，攻速+50%，持續2秒",
+      "summary": "受追蹤敵死亡，攻速+50%持續2秒"
+    },
+    {
+      "id": 16,
+      "type": 1,
+      "name": "梨花槍",
+      "shortName": "花",
+      "rarity": 3,
+      "addAttPower": 6,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "每擊殺一個敵人，飛出8朵旋轉的梨花隨機打擊8個敵人",
+      "summary": "受追蹤敵死亡後嘗試生成8朵梨花"
+    },
+    {
+      "id": 17,
+      "type": 1,
+      "name": "虎頭湛金槍",
+      "shortName": "金",
+      "rarity": 3,
+      "addAttPower": 6,
+      "fragmentsRequired": 4,
+      "exclusive": "馬超",
+      "intro": "首次攻擊某個單位時，20%幾率從地下戳出3個槍陣；專屬：馬超可觸發5個槍陣",
+      "summary": "新敵首命中20%：隨機3槍陣，馬超5"
+    },
+    {
+      "id": 18,
+      "type": 1,
+      "name": "丈八蛇矛",
+      "shortName": "八",
+      "rarity": 4,
+      "addAttPower": 9,
+      "fragmentsRequired": 5,
+      "exclusive": "張飛",
+      "intro": "初始釋放一條靈蛇攔路攻擊敵人，英雄每升一級，會釋放一條新的靈蛇；專屬：張飛釋放大招後，所有靈蛇攻速翻倍，持續6秒。",
+      "summary": "裝備及每次升級在射程內道路隨機放蛇"
+    },
+    {
+      "id": 19,
+      "type": 1,
+      "name": "龍膽亮銀槍",
+      "shortName": "亮",
+      "rarity": 4,
+      "addAttPower": 10,
+      "fragmentsRequired": 5,
+      "exclusive": "趙雲",
+      "intro": "每次攻擊有10%概率召喚飛槍，對所有敵人無差別打擊；專屬：趙雲操縱飛槍技術高超",
+      "summary": "每槍彈體10%飛槍；趙雲每段5%"
+    },
+    {
+      "id": 20,
+      "type": 2,
+      "name": "短刀",
+      "shortName": "短",
+      "rarity": 0,
+      "addAttPower": 1,
+      "fragmentsRequired": 1,
+      "exclusive": null,
+      "intro": "一把樸實無華的短刀",
+      "summary": "普通刀擊1×"
+    },
+    {
+      "id": 21,
+      "type": 2,
+      "name": "長刀",
+      "shortName": "長",
+      "rarity": 1,
+      "addAttPower": 2,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "攻擊距離+0.5",
+      "summary": "射程固定+0.5格"
+    },
+    {
+      "id": 22,
+      "type": 2,
+      "name": "鐵刀",
+      "shortName": "鐵",
+      "rarity": 1,
+      "addAttPower": 3,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "攻擊同一個單位時，每攻擊一次，攻速+5%",
+      "summary": "同目標每次+0.05，上限20"
+    },
+    {
+      "id": 23,
+      "type": 2,
+      "name": "狼牙棒",
+      "shortName": "狼",
+      "rarity": 2,
+      "addAttPower": 4,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "每次攻擊有10%概率狼嚎，提升周圍單位20%攻速，持續10秒",
+      "summary": "攻擊10%給周邊友軍+20%攻速10秒"
+    },
+    {
+      "id": 24,
+      "type": 2,
+      "name": "三尖刀",
+      "shortName": "三",
+      "rarity": 2,
+      "addAttPower": 4,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "每攻擊10次釋放刀氣",
+      "summary": "第10次攻擊改射2×群體刀氣"
+    },
+    {
+      "id": 25,
+      "type": 2,
+      "name": "鐵蒺藜骨朵",
+      "shortName": "鐵",
+      "rarity": 2,
+      "addAttPower": 5,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "有10%概率造成暈眩",
+      "summary": "目標下一次受擊10%暈0.5秒"
+    },
+    {
+      "id": 26,
+      "type": 2,
+      "name": "古錠刀",
+      "shortName": "錠",
+      "rarity": 3,
+      "addAttPower": 6,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "首次攻擊某單位可獲得1金幣",
+      "summary": "每敵首次實際刀擊命中+1貨幣"
+    },
+    {
+      "id": 27,
+      "type": 2,
+      "name": "虎嘯戰刀",
+      "shortName": "戰",
+      "rarity": 3,
+      "addAttPower": 7,
+      "fragmentsRequired": 4,
+      "exclusive": "許褚",
+      "intro": "每次攻擊有10%概率虎嘯，提升周圍單位30%攻速，持續10秒",
+      "summary": "攻擊10%給周邊友軍+30%攻速10秒"
+    },
+    {
+      "id": 28,
+      "type": 2,
+      "name": "七星刀",
+      "shortName": "星",
+      "rarity": 3,
+      "addAttPower": 8,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "每次攻擊有10%幾率觸發流星雨",
+      "summary": "10%流星雨；流星數=武將等級"
+    },
+    {
+      "id": 29,
+      "type": 2,
+      "name": "青龍偃月刀",
+      "shortName": "月",
+      "rarity": 4,
+      "addAttPower": 10,
+      "fragmentsRequired": 5,
+      "exclusive": "關羽",
+      "intro": "武將每斬殺一個敵人，會釋放數團刀氣無差別攻擊所有敵人；專屬：關羽每次跳劈都會無差別釋放刀氣",
+      "summary": "追蹤敵死亡，下次攻擊轉旋斬刀氣"
+    },
+    {
+      "id": 30,
+      "type": 2,
+      "name": "方天畫戟",
+      "shortName": "畫",
+      "rarity": 4,
+      "addAttPower": 10,
+      "fragmentsRequired": 5,
+      "exclusive": "呂布",
+      "intro": "每次攻擊有概率將敵人挑起扔在地上，造成5倍傷害，並砸倒一片敵人",
+      "summary": "等級10/15/20/25/30%挑摔；Boss抽中跳過"
+    },
+    {
+      "id": 31,
+      "type": 3,
+      "name": "短劍",
+      "shortName": "短",
+      "rarity": 0,
+      "addAttPower": 1,
+      "fragmentsRequired": 1,
+      "exclusive": null,
+      "intro": "一把樸實無華的短劍",
+      "summary": "普通劍掃1×"
+    },
+    {
+      "id": 32,
+      "type": 3,
+      "name": "長劍",
+      "shortName": "長",
+      "rarity": 1,
+      "addAttPower": 2,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "攻擊距離+0.5",
+      "summary": "射程固定+0.5格；普通劍掃"
+    },
+    {
+      "id": 33,
+      "type": 3,
+      "name": "鐵劍",
+      "shortName": "鐵",
+      "rarity": 1,
+      "addAttPower": 3,
+      "fragmentsRequired": 2,
+      "exclusive": null,
+      "intro": "攻擊力+3",
+      "summary": "另加固定攻擊3；普通劍掃"
+    },
+    {
+      "id": 34,
+      "type": 3,
+      "name": "巨闕劍",
+      "shortName": "巨",
+      "rarity": 2,
+      "addAttPower": 4,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 35,
+      "type": 3,
+      "name": "龍泉劍",
+      "shortName": "龍",
+      "rarity": 2,
+      "addAttPower": 5,
+      "fragmentsRequired": 3,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 36,
+      "type": 3,
+      "name": "龍淵劍",
+      "shortName": "淵",
+      "rarity": 3,
+      "addAttPower": 6,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率0%"
+    },
+    {
+      "id": 37,
+      "type": 3,
+      "name": "雙股劍",
+      "shortName": "股",
+      "rarity": 3,
+      "addAttPower": 6,
+      "fragmentsRequired": 4,
+      "exclusive": "劉備",
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率100%"
+    },
+    {
+      "id": 38,
+      "type": 3,
+      "name": "青缸劍",
+      "shortName": "缸",
+      "rarity": 3,
+      "addAttPower": 7,
+      "fragmentsRequired": 4,
+      "exclusive": "曹操",
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 39,
+      "type": 3,
+      "name": "七星劍",
+      "shortName": "星",
+      "rarity": 3,
+      "addAttPower": 8,
+      "fragmentsRequired": 4,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 40,
+      "type": 3,
+      "name": "倚天劍",
+      "shortName": "倚",
+      "rarity": 4,
+      "addAttPower": 9,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 41,
+      "type": 3,
+      "name": "莫邪",
+      "shortName": "邪",
+      "rarity": 4,
+      "addAttPower": 9,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 42,
+      "type": 3,
+      "name": "干將",
+      "shortName": "干",
+      "rarity": 4,
+      "addAttPower": 9,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    },
+    {
+      "id": 43,
+      "type": 3,
+      "name": "軒轅劍",
+      "shortName": "軒",
+      "rarity": 4,
+      "addAttPower": 10,
+      "fragmentsRequired": 5,
+      "exclusive": null,
+      "intro": "每攻擊十次觸發君子劍或小人劍效果",
+      "summary": "十次技能劍；一般持有者小人概率50%"
+    }
+  ],
+  "fragmentDrop": {
+    "chancePerEnemy": 0.065,
+    "roundThresholds": [
+      0,
+      15,
+      35,
+      70,
+      120,
+      220,
+      400
+    ],
+    "rarityWeightsByBracket": [
+      [
+        0,
+        40,
+        8,
+        2,
+        1
+      ],
+      [
+        0,
+        32,
+        12,
+        3,
+        1
+      ],
+      [
+        0,
+        24,
+        14,
+        4,
+        2
+      ],
+      [
+        0,
+        4,
+        10,
+        4,
+        1
+      ],
+      [
+        0,
+        3,
+        9,
+        6,
+        2
+      ],
+      [
+        0,
+        2,
+        8,
+        7,
+        3
+      ],
+      [
+        0,
+        2,
+        8,
+        7,
+        3
+      ]
+    ]
+  },
+  "recycle": {
+    "allowedRarities": [
+      0,
+      1,
+      2
+    ],
+    "goldPerFragmentByRarity": [
+      1,
+      2,
+      3
+    ]
+  },
+  "unlockOnRegisterDay": 3,
+  "starterTypeOrder": [
+    2,
+    1,
+    0,
+    3
+  ],
+  "equipSlots": 12
+}

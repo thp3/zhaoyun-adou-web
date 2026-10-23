@@ -1,0 +1,53 @@
+{
+  "generator": "tools/extract/extract.mjs",
+  "rulesetVersion": "web-ai-v1",
+  "sources": {
+    "maps": {
+      "path": "赵云与阿斗_1.0.9_全部遊戲邏輯/系統對照資料/四地圖定義.json",
+      "sha256": "3793302012f207e568b4b90c9aee614f79ebd1380d38eefb950fa654dda4b26a"
+    },
+    "deck": {
+      "path": "赵云与阿斗_1.0.9_全部遊戲邏輯/系統對照資料/牌庫與消耗.json",
+      "sha256": "127e369612b50c605062ae1b367d2dccf199c5e84fba48908313383940c1f008"
+    },
+    "shop": {
+      "path": "赵云与阿斗_1.0.9_全部遊戲邏輯/系統對照資料/商店輪盤經濟表.json",
+      "sha256": "becc4cf6b548fc7f2a5cc85f3530329edd872ee8d61be30f9f82f078118afee8"
+    },
+    "ranks": {
+      "path": "赵云与阿斗_1.0.9_全部遊戲邏輯/系統對照資料/54段位配置.json",
+      "sha256": "1fc0f91004ba4f039b9b163990deb192374746170240ae24b04d0eb39e2b29e8"
+    },
+    "weaponImpl": {
+      "path": "赵云与阿斗_1.0.9_全部遊戲邏輯/系統對照資料/全部武器實碼對照.json",
+      "sha256": "2666d01019680b204d15d52539266554af874dc545f18d428e4d4097c149aab6"
+    },
+    "weapons": {
+      "path": "赵云与阿斗_1.0.9_還原程式碼/可讀腳本/tables/weapon.json",
+      "sha256": "3f51c1ee547a2eb0a2d3f150009f895374943825b21401fb73d57bdb5fcbc42c"
+    },
+    "constants": {
+      "path": "赵云与阿斗_1.0.9_還原程式碼/可讀腳本/tables/game_constants.json",
+      "sha256": "ac1c7cacd436d477d27eaee9dcf95ce33c2ef9eed01e9e3dc8d80508a77a7b30"
+    },
+    "skills": {
+      "path": "赵云与阿斗_1.0.9_還原程式碼/可讀腳本/tables/skill_metadata.json",
+      "sha256": "61a287a1e8cf67b554ec8013a33e1a983e98035d2c04531b88eece2a47ded16e"
+    }
+  },
+  "counts": {
+    "tokens": 24,
+    "maps": 4,
+    "deck": 108,
+    "soldiers": 4,
+    "generals": 12,
+    "skills": 7,
+    "bosses": 12,
+    "waves": 20,
+    "items": 25,
+    "buffs": 20,
+    "weapons": 44,
+    "weaponDefaults": 4,
+    "ranks": 54
+  }
+}

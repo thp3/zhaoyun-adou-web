@@ -1,0 +1,64 @@
+{
+  "decisionIntervalMs": [
+    2000,
+    1500,
+    1000,
+    500
+  ],
+  "initialBonusGold": 10,
+  "waveBonusWaves": [
+    3,
+    5,
+    8,
+    11,
+    14,
+    17
+  ],
+  "waveBonusGoldByDifficulty": [
+    0,
+    0,
+    10,
+    20
+  ],
+  "expandChanceWhenBroke": [
+    0.001,
+    0.001,
+    0.001,
+    0.001
+  ],
+  "extraShovelsByDifficulty": [
+    0,
+    0,
+    0,
+    5
+  ],
+  "lowDifficultyValueMult": [
+    0.2,
+    0.3
+  ],
+  "minValueToDeploy": 2,
+  "replaceFactor": {
+    "soldier": 2,
+    "general": 3,
+    "scale": 0.1
+  },
+  "clusterPenalty": {
+    "radius": 3,
+    "factor": 0.62
+  },
+  "pathTrim": 0.15,
+  "propUseMinIntervalMs": 5000,
+  "unresolved": {
+    "Ji": [
+      5,
+      2,
+      1
+    ],
+    "sh": [
+      0.1,
+      0.2,
+      0.5,
+      0.8
+    ]
+  }
+}

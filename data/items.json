@@ -1,0 +1,622 @@
+{
+  "capacity": {
+    "active": 2,
+    "passive": 6
+  },
+  "shopItemsPerVisit": 3,
+  "shopExcluded": [
+    "shovel",
+    "bulldozer"
+  ],
+  "shopUnlockRankId": 1,
+  "staminaItem": "marchPill",
+  "lotterySlots": 8,
+  "rarityNames": [
+    "稀有",
+    "卓越",
+    "史詩",
+    "傳說"
+  ],
+  "rarityColors": [
+    "#95e45a",
+    "#2dddff",
+    "#D955FF",
+    "#E99431"
+  ],
+  "aiItemCountFirstDay": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      1,
+      3
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      5
+    ],
+    [
+      2,
+      5
+    ],
+    [
+      2,
+      5
+    ],
+    [
+      2,
+      5
+    ],
+    [
+      2,
+      5
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      3,
+      6
+    ],
+    [
+      5,
+      8
+    ],
+    [
+      5,
+      8
+    ],
+    [
+      5,
+      8
+    ],
+    [
+      5,
+      8
+    ],
+    [
+      5,
+      8
+    ]
+  ],
+  "aiItemCountLater": [
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      0
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      0,
+      1
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      1,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      2,
+      4
+    ],
+    [
+      3,
+      5
+    ],
+    [
+      3,
+      5
+    ],
+    [
+      3,
+      5
+    ],
+    [
+      3,
+      5
+    ],
+    [
+      3,
+      5
+    ],
+    [
+      4,
+      7
+    ],
+    [
+      4,
+      7
+    ],
+    [
+      4,
+      7
+    ],
+    [
+      4,
+      7
+    ],
+    [
+      4,
+      7
+    ],
+    [
+      6,
+      8
+    ],
+    [
+      6,
+      8
+    ],
+    [
+      6,
+      8
+    ],
+    [
+      6,
+      8
+    ],
+    [
+      6,
+      8
+    ]
+  ],
+  "items": [
+    {
+      "id": 0,
+      "key": "shovel",
+      "name": "鏟子",
+      "intro": "{type}一把可以開荒的鏟子",
+      "active": true,
+      "cooldownMs": 0,
+      "rarity": 3,
+      "goldPrice": 999,
+      "lotteryInclusionWeight": null,
+      "lotteryWinWeight": null,
+      "levels": null
+    },
+    {
+      "id": 1,
+      "key": "bulldozer",
+      "name": "推土車",
+      "intro": "{type}將敵人向後推,阿斗安全無憂",
+      "active": true,
+      "cooldownMs": 0,
+      "rarity": 3,
+      "goldPrice": 999,
+      "lotteryInclusionWeight": null,
+      "lotteryWinWeight": null,
+      "levels": null
+    },
+    {
+      "id": 2,
+      "key": "writingBrush",
+      "name": "毛筆",
+      "intro": "{type}可以逆天改字",
+      "active": true,
+      "cooldownMs": 30000,
+      "rarity": 2,
+      "goldPrice": 50,
+      "lotteryInclusionWeight": 10,
+      "lotteryWinWeight": 12,
+      "levels": null
+    },
+    {
+      "id": 3,
+      "key": "trainingSpell",
+      "name": "練兵符",
+      "intro": "{type}拖到單位上有概率升一級或降一級",
+      "active": true,
+      "cooldownMs": 65000,
+      "rarity": 2,
+      "goldPrice": 60,
+      "lotteryInclusionWeight": 8,
+      "lotteryWinWeight": 8,
+      "levels": null
+    },
+    {
+      "id": 4,
+      "key": "upLvlSpell",
+      "name": "神兵符",
+      "intro": "{type}拖到單位上升一級",
+      "active": true,
+      "cooldownMs": 55000,
+      "rarity": 3,
+      "goldPrice": 90,
+      "lotteryInclusionWeight": 5,
+      "lotteryWinWeight": 3,
+      "levels": null
+    },
+    {
+      "id": 5,
+      "key": "lifePill",
+      "name": "包子",
+      "intro": "{type}55%概率給阿斗續一條命，45%概率減少一條命",
+      "active": true,
+      "cooldownMs": 90000,
+      "rarity": 1,
+      "goldPrice": 50,
+      "lotteryInclusionWeight": 10,
+      "lotteryWinWeight": 12,
+      "levels": null
+    },
+    {
+      "id": 6,
+      "key": "longRange",
+      "name": "御敵千里",
+      "intro": "{type}使遠程單位攻擊範圍翻倍，全局生效",
+      "active": true,
+      "cooldownMs": 60000,
+      "rarity": 0,
+      "goldPrice": 30,
+      "lotteryInclusionWeight": 20,
+      "lotteryWinWeight": 25,
+      "levels": null
+    },
+    {
+      "id": 7,
+      "key": "inkstone",
+      "name": "硯台",
+      "intro": "{type}打翻硯台，潑出墨汁，使敵方部隊攻速緩慢，持續5秒",
+      "active": true,
+      "cooldownMs": 90000,
+      "rarity": 0,
+      "goldPrice": 30,
+      "lotteryInclusionWeight": 20,
+      "lotteryWinWeight": 25,
+      "levels": null
+    },
+    {
+      "id": 8,
+      "key": "trap",
+      "name": "陷阱",
+      "intro": "{type}敵人掉下去一時會爬不出來",
+      "active": true,
+      "cooldownMs": 50000,
+      "rarity": 0,
+      "goldPrice": 35,
+      "lotteryInclusionWeight": 15,
+      "lotteryWinWeight": 20,
+      "levels": null
+    },
+    {
+      "id": 9,
+      "key": "landmine",
+      "name": "地雷",
+      "intro": "{type}可炸死敵人",
+      "active": true,
+      "cooldownMs": 55000,
+      "rarity": 1,
+      "goldPrice": 50,
+      "lotteryInclusionWeight": 10,
+      "lotteryWinWeight": 12,
+      "levels": null
+    },
+    {
+      "id": 10,
+      "key": "attSpeedSpell",
+      "name": "攻速符",
+      "intro": "{type}單位攻速+40%，全局生效",
+      "active": true,
+      "cooldownMs": 90000,
+      "rarity": 2,
+      "goldPrice": 80,
+      "lotteryInclusionWeight": 6,
+      "lotteryWinWeight": 4,
+      "levels": null
+    },
+    {
+      "id": 11,
+      "key": "exorcismSpell",
+      "name": "降妖符",
+      "intro": "{type}boss施法有50%失敗率，並反噬boss自身血量",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 2,
+      "goldPrice": 80,
+      "lotteryInclusionWeight": 6,
+      "lotteryWinWeight": 4,
+      "levels": null
+    },
+    {
+      "id": 12,
+      "key": "farmer",
+      "name": "農民",
+      "intro": "{type}可以刷出農民，每20秒+1金幣，升級生產速度翻倍",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 2,
+      "goldPrice": 90,
+      "lotteryInclusionWeight": 5,
+      "lotteryWinWeight": 3,
+      "levels": null
+    },
+    {
+      "id": 13,
+      "key": "recruit",
+      "name": "招賢榜",
+      "intro": "{type}武將刷出概率x2",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 2,
+      "goldPrice": 90,
+      "lotteryInclusionWeight": 8,
+      "lotteryWinWeight": 8,
+      "levels": null
+    },
+    {
+      "id": 14,
+      "key": "allAttSpeedSpell",
+      "name": "攻速符(全體)",
+      "intro": "{type}雙方所有單位攻速+10%，全局生效",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 1,
+      "goldPrice": 60,
+      "lotteryInclusionWeight": 8,
+      "lotteryWinWeight": 8,
+      "levels": null
+    },
+    {
+      "id": 15,
+      "key": "goingHandInHand",
+      "name": "齊頭並進",
+      "intro": "{type}我方單位攻速+50%，對方單位攻速+30%，全局生效",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 2,
+      "goldPrice": 90,
+      "lotteryInclusionWeight": 5,
+      "lotteryWinWeight": 3,
+      "levels": null
+    },
+    {
+      "id": 16,
+      "key": "xuMingPill",
+      "name": "續命丹",
+      "intro": "{type}我方阿斗+5條命，對方阿斗+3條命",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 0,
+      "goldPrice": 50,
+      "lotteryInclusionWeight": 10,
+      "lotteryWinWeight": 12,
+      "levels": null
+    },
+    {
+      "id": 17,
+      "key": "daBuPill",
+      "name": "大補丸",
+      "intro": "{type}我方阿斗+3條命",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 0,
+      "goldPrice": 40,
+      "lotteryInclusionWeight": 12,
+      "lotteryWinWeight": 15,
+      "levels": null
+    },
+    {
+      "id": 18,
+      "key": "silt",
+      "name": "淤泥",
+      "intro": "{type}道路泥濘，我方敵人移速-10%，全局生效",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 0,
+      "goldPrice": 40,
+      "lotteryInclusionWeight": 12,
+      "lotteryWinWeight": 15,
+      "levels": null
+    },
+    {
+      "id": 19,
+      "key": "superShovel",
+      "name": "洛陽鏟",
+      "intro": "{type}每60秒生成一個鏟子",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 3,
+      "goldPrice": 120,
+      "lotteryInclusionWeight": 3,
+      "lotteryWinWeight": 1,
+      "levels": null
+    },
+    {
+      "id": 20,
+      "key": "meteor",
+      "name": "隕石",
+      "intro": "{type}當敵人接近阿斗時，會落下隕石消滅敵人",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 3,
+      "goldPrice": 150,
+      "lotteryInclusionWeight": 2,
+      "lotteryWinWeight": 1,
+      "levels": null
+    },
+    {
+      "id": 21,
+      "key": "trashCan",
+      "name": "垃圾桶",
+      "intro": "{type}1饅頭回收無用文字",
+      "active": true,
+      "cooldownMs": 0,
+      "rarity": 3,
+      "goldPrice": 150,
+      "lotteryInclusionWeight": 2,
+      "lotteryWinWeight": 1,
+      "levels": null
+    },
+    {
+      "id": 22,
+      "key": "promotionOrder",
+      "name": "升職令",
+      "intro": "{type}刷出的兵有{level}%概率升到2級",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 1,
+      "goldPrice": 100,
+      "lotteryInclusionWeight": 8,
+      "lotteryWinWeight": 5,
+      "levels": [
+        {
+          "level": 1,
+          "promoteChancePct": 5,
+          "rarity": 1,
+          "goldPrice": 100,
+          "lotteryInclusionWeight": 8,
+          "lotteryWinWeight": 5
+        },
+        {
+          "level": 2,
+          "promoteChancePct": 10,
+          "rarity": 2,
+          "goldPrice": 100,
+          "lotteryInclusionWeight": 5,
+          "lotteryWinWeight": 3
+        },
+        {
+          "level": 3,
+          "promoteChancePct": 15,
+          "rarity": 3,
+          "goldPrice": 150,
+          "lotteryInclusionWeight": 3,
+          "lotteryWinWeight": 2
+        }
+      ]
+    },
+    {
+      "id": 23,
+      "key": "marchPill",
+      "name": "行軍丹",
+      "intro": "{type}體力+10",
+      "active": true,
+      "cooldownMs": 0,
+      "rarity": 0,
+      "goldPrice": 40,
+      "lotteryInclusionWeight": 12,
+      "lotteryWinWeight": 15,
+      "levels": null
+    },
+    {
+      "id": 24,
+      "key": "goldSeeker",
+      "name": "摸金校尉",
+      "intro": "{type}讓所有鏟子變成金鏟子，剷出寶箱",
+      "active": false,
+      "cooldownMs": null,
+      "rarity": 3,
+      "goldPrice": 150,
+      "lotteryInclusionWeight": 2,
+      "lotteryWinWeight": 1,
+      "levels": null
+    }
+  ]
+}

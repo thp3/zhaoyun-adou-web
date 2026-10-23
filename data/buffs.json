@@ -1,0 +1,104 @@
+{
+  "buffs": [
+    {
+      "id": 0,
+      "key": "attPower",
+      "category": "stat"
+    },
+    {
+      "id": 1,
+      "key": "attSpeed",
+      "category": "stat"
+    },
+    {
+      "id": 2,
+      "key": "attRange",
+      "category": "stat"
+    },
+    {
+      "id": 3,
+      "key": "moveSpeed",
+      "category": "stat"
+    },
+    {
+      "id": 4,
+      "key": "maxHp",
+      "category": "stat"
+    },
+    {
+      "id": 5,
+      "key": "hp",
+      "category": "stat"
+    },
+    {
+      "id": 6,
+      "key": "scale",
+      "category": "stat"
+    },
+    {
+      "id": 7,
+      "key": "custom",
+      "category": "custom"
+    },
+    {
+      "id": 8,
+      "key": "stun",
+      "category": "state"
+    },
+    {
+      "id": 9,
+      "key": "fall",
+      "category": "state"
+    },
+    {
+      "id": 10,
+      "key": "pierce",
+      "category": "state"
+    },
+    {
+      "id": 11,
+      "key": "electrocute",
+      "category": "state"
+    },
+    {
+      "id": 12,
+      "key": "knockback",
+      "category": "state"
+    },
+    {
+      "id": 13,
+      "key": "chaos",
+      "category": "state"
+    },
+    {
+      "id": 14,
+      "key": "burnStatic",
+      "category": "state"
+    },
+    {
+      "id": 15,
+      "key": "limit",
+      "category": "state"
+    },
+    {
+      "id": 16,
+      "key": "lock",
+      "category": "state"
+    },
+    {
+      "id": 17,
+      "key": "knockdown",
+      "category": "state"
+    },
+    {
+      "id": 18,
+      "key": "suppression",
+      "category": "state"
+    },
+    {
+      "id": 19,
+      "key": "charm",
+      "category": "state"
+    }
+  ]
+}
