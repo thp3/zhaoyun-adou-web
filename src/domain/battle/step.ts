@@ -1,8 +1,11 @@
 // 單一 tick 的固定更新次序。render 不是邏輯 tick；同一輸入序列必得同一結果。
-import { resolveAttack, updateAttackers, updateProjectiles } from './combat';
 import { aiWaveBonus, updateAi } from './ai/controller';
+import { isBossAction, maybeSpawnBoss, resolveBossAction, updateBosses } from './bosses';
+import { expireRoundBuffs, updateBuffs } from './buffs';
+import { resolveAttack, updateAttackers, updateProjectiles } from './combat';
 import { applyCommand } from './commands';
-import { moveEnemies, spawnEnemy } from './enemies';
+import { moveEnemies, reviveZombie, spawnEnemy } from './enemies';
+import { isSkillAction, resolveSkill, updateSkillEntities } from './skills';
 import { ticks, type BattleCommand, type BattleEvent, type BattleResult, type BattleRules, type StepContext, type World } from './types';
 
 export function stepWorld(w: World, commands: readonly BattleCommand[], rules: BattleRules): BattleEvent[] {
@@ -21,20 +24,25 @@ export function stepWorld(w: World, commands: readonly BattleCommand[], rules: B
         w.camps[0].refreshed = true;
       }
       if (a && a.side === 1) w.camps[1].refreshed = true;
-    } else resolveAttack(w, action, ctx);
+    } else if (isSkillAction(action)) resolveSkill(w, action, ctx);
+    else if (isBossAction(action)) resolveBossAction(w, action, ctx, (side, x, y, idx) => reviveZombie(w, side, x, y, idx, ctx));
+    else resolveAttack(w, action, ctx);
   }
   // 2. 命令：玩家命令，接著 AI 到決策點時產生命令（同一個驗證入口）
   for (const cmd of commands) applyCommand(w, cmd, ctx);
   updateAi(w, ctx);
   // 3. 波次與出兵
   updateWave(w, ctx);
-  // 4.（M4）buff 到期
-  // 5. 敵人移動與抵達阿斗
+  // 4. buff 到期與灼燒；Boss 冷卻與施法
+  updateBuffs(w, ctx);
+  updateBosses(w, ctx);
+  // 5. 敵人移動（含擊退）與抵達阿斗
   moveEnemies(w, ctx);
-  // 6. 士兵出手
+  // 6. 普通兵與武將出手（含技能接管）
   updateAttackers(w, ctx);
-  // 7. 彈體
+  // 7. 彈體與持續型技能
   updateProjectiles(w, ctx);
+  updateSkillEntities(w, ctx);
   // 8. 終局判定（同 tick 先判玩家敗，再判 AI 敗，再判 20 波）
   const result = judge(w);
   if (result) {
@@ -80,7 +88,9 @@ function updateWave(w: World, ctx: StepContext): void {
 
 function startWave(w: World, wave: number, ctx: StepContext): void {
   w.wave = { phase: 'spawning', wave, timer: 0, spawned: 0 };
+  expireRoundBuffs(w);
   aiWaveBonus(w, wave, ctx.data);
+  maybeSpawnBoss(w, wave, ctx);
   ctx.events.push({ type: 'waveStart', wave });
 }
 

@@ -1,6 +1,6 @@
 // 戰場繪製：純文字與幾何形狀，不載入任何圖片。只讀 World，不改狀態。
 import type { GameData } from '../data';
-import { CELL, type Actor, type BattleEvent, type General, type World } from '../domain/battle/types';
+import { CELL, type Actor, type BattleEvent, type Enemy, type General, type World } from '../domain/battle/types';
 
 export const BOARD_W = 640;
 export const BOARD_H = 800;
@@ -98,7 +98,9 @@ export function drawBattle(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
     if (a.loc.c === 'board') drawActor(ctx, a, a.loc.x * CELL + 6, a.loc.y * CELL + 6, CELL - 12, o, 1);
   }
   for (const g of Object.values(w.generals)) drawGeneral(ctx, w, g, o);
-  for (const e of Object.values(w.enemies)) drawEnemy(ctx, e.x, e.y, e.hp / e.maxHp, e.side === 0, o);
+  for (const a of Object.values(w.actors)) if (a.loc.c === 'board' && o.drag?.actorId !== a.id) drawUnitStatus(ctx, w, a, o);
+  for (const e of Object.values(w.enemies)) drawEnemy(ctx, w, e, o);
+  drawSkillEntities(ctx, w, o);
   ctx.strokeStyle = P.ink;
   ctx.lineWidth = 3;
   for (const p of Object.values(w.projectiles)) {
@@ -110,6 +112,7 @@ export function drawBattle(ctx: CanvasRenderingContext2D, w: World, o: DrawOptio
     ctx.stroke();
   }
   drawEffects(ctx, o);
+  drawBlind(ctx, w);
   drawBar(ctx, w, o);
 
   if (o.drag) {
@@ -240,24 +243,123 @@ function drawGeneral(ctx: CanvasRenderingContext2D, w: World, g: General, o: Dra
   ctx.fillText(`Lv${g.level}`, x + wpx - 14, y + 7);
 }
 
-function drawEnemy(ctx: CanvasRenderingContext2D, x: number, y: number, hpRatio: number, own: boolean, o: DrawOptions): void {
+const ENEMY_GLYPH: Record<Enemy['kind'], string> = { mob: '賊', zombie: '屍', cavalry: '騎', puppet: '傀' };
+/** 狀態符號：控制類在單位或敵人右上角標一個字 */
+const STATUS_GLYPH: Record<number, string> = { 8: '暈', 9: '倒', 10: '刺', 11: '電', 13: '亂', 14: '燃', 15: '困', 16: '鎖', 17: '倒', 18: '壓', 19: '惑' };
+
+function statusGlyph(w: World, id: number): string | null {
+  for (const b of w.buffs[id] ?? []) {
+    const g = STATUS_GLYPH[b.type];
+    if (g) return g;
+  }
+  return null;
+}
+
+function drawBadge(ctx: CanvasRenderingContext2D, x: number, y: number, text: string, o: DrawOptions): void {
   const P = o.palette;
-  // 對方防區的敵人淡化，與自己要防守的敵人區分
-  ctx.globalAlpha = own ? 1 : 0.45;
-  ctx.fillStyle = own ? P.ink : P.ink2;
+  ctx.fillStyle = P.bad;
   ctx.beginPath();
-  ctx.arc(x, y, 17, 0, Math.PI * 2);
+  ctx.arc(x, y, 10, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = P.paper;
-  ctx.font = `bold 18px ${SERIF}`;
+  ctx.fillStyle = P.unitText;
+  ctx.font = `bold 12px ${SERIF}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('賊', x, y + 1);
-  ctx.fillStyle = P.line;
-  ctx.fillRect(x - 18, y - 27, 36, 5);
-  ctx.fillStyle = hpRatio > 0.5 ? P.ok : hpRatio > 0.25 ? P.gold : P.bad;
-  ctx.fillRect(x - 18, y - 27, 36 * Math.max(0, hpRatio), 5);
+  ctx.fillText(text, x, y + 1);
+}
+
+function drawUnitStatus(ctx: CanvasRenderingContext2D, w: World, a: Actor, o: DrawOptions): void {
+  if (a.loc.c !== 'board') return;
+  const g = statusGlyph(w, a.id);
+  if (g) drawBadge(ctx, a.loc.x * CELL + CELL - 12, a.loc.y * CELL + 12, g, o);
+}
+
+function drawEnemy(ctx: CanvasRenderingContext2D, w: World, e: Enemy, o: DrawOptions): void {
+  const P = o.palette;
+  const own = e.side === 0;
+  const max = e.maxHp + (w.buffs[e.id] ?? []).filter((b) => b.type === 4).reduce((s, b) => s + (b.percent ? e.maxHp * b.num : b.num), 0);
+  const ratio = Math.max(0, e.hp / max);
+  const scale = 1 + e.scaleBonus + (w.buffs[e.id] ?? []).filter((b) => b.type === 6).reduce((s, b) => s + b.num, 0);
+  // 對方防區的敵人淡化，與自己要防守的敵人區分
+  ctx.globalAlpha = own ? 1 : 0.45;
+  const bs = e.bossState;
+  if (bs) {
+    const def = o.data.waves.bosses[bs.bossId]!;
+    const r = 26 * scale;
+    ctx.fillStyle = def.color;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    if (bs.cast >= 0) {
+      ctx.strokeStyle = P.gold;
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+    ctx.fillStyle = P.unitText;
+    ctx.font = `bold ${def.name.length > 2 ? 14 : 17}px ${SERIF}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(def.name, e.x, e.y + 1);
+    ctx.fillStyle = P.line;
+    ctx.fillRect(e.x - 30, e.y - r - 12, 60, 6);
+    ctx.fillStyle = ratio > 0.5 ? P.ok : ratio > 0.25 ? P.gold : P.bad;
+    ctx.fillRect(e.x - 30, e.y - r - 12, 60 * ratio, 6);
+  } else {
+    const r = 17 * scale;
+    ctx.fillStyle = own ? P.ink : P.ink2;
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = P.paper;
+    ctx.font = `bold 18px ${SERIF}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ENEMY_GLYPH[e.kind], e.x, e.y + 1);
+    ctx.fillStyle = P.line;
+    ctx.fillRect(e.x - 18, e.y - r - 10, 36, 5);
+    ctx.fillStyle = ratio > 0.5 ? P.ok : ratio > 0.25 ? P.gold : P.bad;
+    ctx.fillRect(e.x - 18, e.y - r - 10, 36 * ratio, 5);
+  }
+  const g = statusGlyph(w, e.id);
+  if (g) drawBadge(ctx, e.x + 16, e.y - 14, g, o);
   ctx.globalAlpha = 1;
+}
+
+function drawSkillEntities(ctx: CanvasRenderingContext2D, w: World, o: DrawOptions): void {
+  const P = o.palette;
+  for (const s of Object.values(w.skills)) {
+    ctx.globalAlpha = s.side === 0 ? 0.85 : 0.4;
+    if (s.kind === 'phantom') {
+      const g = w.generals[s.generalId];
+      const name = g ? o.data.generals.generals[g.type]!.name : '影';
+      ctx.strokeStyle = P.gold;
+      ctx.setLineDash([5, 4]);
+      ctx.lineWidth = 2;
+      roundRect(ctx, s.x - 38, s.y - 22, 76, 44, 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = P.gold;
+      ctx.font = `bold 20px ${SERIF}`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(name, s.x, s.y + 1);
+    } else {
+      ctx.strokeStyle = P.gold;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(s.x - s.dx * 30, s.y - s.dy * 30);
+      ctx.lineTo(s.x + s.dx * 20, s.y + s.dy * 20);
+      ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** 夏侯惇噬目：玩家防區變暗 */
+function drawBlind(ctx: CanvasRenderingContext2D, w: World): void {
+  if (w.blindUntil[0] <= w.tick) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.72)';
+  for (let x = 0; x < w.camp.length; x++) for (let y = 0; y < w.camp[x]!.length; y++) if (w.camp[x]![y] === 0) ctx.fillRect(x * CELL, y * CELL, CELL, CELL);
 }
 
 function drawEffects(ctx: CanvasRenderingContext2D, o: DrawOptions): void {
@@ -289,6 +391,24 @@ function drawEffects(ctx: CanvasRenderingContext2D, o: DrawOptions): void {
       ctx.font = `bold 16px sans-serif`;
       ctx.textAlign = 'center';
       ctx.fillText(formatDamage(ev.amount), ev.x, ev.y - 30 - age / 25);
+    } else if (ev.type === 'blast') {
+      const life = 300;
+      if (age > life) continue;
+      ctx.globalAlpha = 0.6 * (1 - age / life);
+      ctx.strokeStyle = P.seal;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(ev.x, ev.y, ev.r * (0.6 + (0.4 * age) / life), 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (ev.type === 'skill' || ev.type === 'bossCast') {
+      const life = 900;
+      if (age > life) continue;
+      const text = ev.type === 'skill' ? ev.name : o.data.waves.bosses[ev.bossId]!.skillName;
+      ctx.globalAlpha = 1 - age / life;
+      ctx.fillStyle = ev.type === 'skill' ? P.gold : P.seal;
+      ctx.font = `bold 22px ${SERIF}`;
+      ctx.textAlign = 'center';
+      ctx.fillText(text, ev.x, ev.y - 40 - age / 30);
     } else if (ev.type === 'enemyDied') {
       const life = 500;
       if (age > life) continue;

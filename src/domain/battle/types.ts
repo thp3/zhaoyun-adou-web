@@ -43,6 +43,10 @@ export interface General {
   level: number;
   exp: number;
   cooldown: number;
+  /** 具名技能計數（普攻次數） */
+  skillCount: number;
+  /** 技能接管中，暫停普攻直到這個 tick */
+  busyUntil: number;
 }
 
 export interface Enemy {
@@ -59,7 +63,84 @@ export interface Enemy {
   boss: boolean;
   /** 曾造成傷害的武將 id（助攻經驗用） */
   hitBy: number[];
+  /** 敵人種類：普通、殭屍（招魂）、鐵騎（華雄召喚）、傀儡（貂蟬） */
+  kind: 'mob' | 'zombie' | 'cavalry' | 'puppet';
+  /** 擊退速度（像素／秒），每 tick 衰減 */
+  knockVel: number;
+  /** 顯示縮放增量（董卓吞噬） */
+  scaleBonus: number;
+  /** Boss 專屬狀態；普通敵人為 null */
+  bossState: BossState | null;
 }
+
+export interface BossState {
+  /** data.waves.bosses 的索引 */
+  bossId: number;
+  /** 技能冷卻累積（tick） */
+  cd: number;
+  /** 施法中：已經過的 tick；未施法為 -1 */
+  cast: number;
+  /** 本次施法的暫存資料 */
+  castData: Record<string, number | number[]>;
+  /** 甄宓：每隻只真正施法一次 */
+  usedOnce: boolean;
+}
+
+/** buff 實例；time / timer 以 tick 計，time=-1 永久、-2 到下一波開始 */
+export interface BuffEntry {
+  sub: number;
+  type: number;
+  num: number;
+  percent: boolean;
+  time: number;
+  timer: number;
+  /** 全局來源標記（例：rain12），用於精準移除 */
+  sign: string | null;
+}
+
+/** 全局效果來源：對某一方現有與之後新建的單位／敵人都套用（原版 Kh.RE / Se.RE） */
+export interface GlobalBuff {
+  sign: string;
+  side: Side;
+  target: 'units' | 'enemies';
+  type: number;
+  num: number;
+  percent: boolean;
+  time: number;
+}
+
+/** 持續存在的技能實體 */
+export type SkillEntity =
+  | {
+      id: number;
+      kind: 'phantom';
+      side: Side;
+      generalId: number;
+      damage: number;
+      /** 沿路徑的位置 */
+      x: number;
+      y: number;
+      pathIdx: number;
+      /** 目前要去的路徑 index */
+      goal: number;
+      trips: number;
+      /** 距下次清除命中紀錄的 tick */
+      clearIn: number;
+      hit: number[];
+    }
+  | {
+      id: number;
+      kind: 'sword';
+      side: Side;
+      src: AttackSource;
+      damage: number;
+      x: number;
+      y: number;
+      dx: number;
+      dy: number;
+      left: number;
+      hit: number[];
+    };
 
 /** 攻擊來源：普通兵 actor 或武將 */
 export type AttackSource = { kind: 'actor' | 'general'; id: number };
@@ -81,7 +162,14 @@ export type ScheduledAction =
   | { kind: 'meleeHit'; src: AttackSource; targetId: number; damage: number }
   | { kind: 'fireArrow'; src: AttackSource; targetId: number; damage: number }
   | { kind: 'spearThrust'; src: AttackSource; targetId: number; damage: number }
-  | { kind: 'cavalrySweep'; src: AttackSource; damage: number };
+  | { kind: 'cavalrySweep'; src: AttackSource; damage: number }
+  | { kind: 'jumpSlash'; generalId: number; hopsLeft: number }
+  | { kind: 'warCry'; generalId: number; stunMs: number }
+  | { kind: 'rocket'; side: Side; generalId: number; x: number; y: number; damage: number }
+  | { kind: 'arrowRain'; generalId: number; roundsLeft: number }
+  | { kind: 'reviveZombie'; side: Side; x: number; y: number; pathIdx: number }
+  | { kind: 'puppet'; side: Side; actorId: number; bossId: number }
+  | { kind: 'demolish'; side: Side; x: number; y: number }
 
 export interface Scheduled {
   due: number;
@@ -138,6 +226,17 @@ export interface World {
   generals: Record<number, General>;
   enemies: Record<number, Enemy>;
   projectiles: Record<number, Projectile>;
+  /** 目標 id → buff 列表（目標可為敵人、普通兵、名字字或武將） */
+  buffs: Record<number, BuffEntry[]>;
+  globals: GlobalBuff[];
+  /** Boss 地圖輪換索引（原版 re），只有真的出 Boss 才推進 */
+  bossRotation: number;
+  /** 張寶招魂：各側本次施法中的復活計數；-1 表示未啟用 */
+  soulCall: [number, number];
+  /** 夏侯惇噬目：各側視野變暗到哪個 tick */
+  blindUntil: [number, number];
+  /** 進行中的技能實體（七進七出幻象等） */
+  skills: Record<number, SkillEntity>;
   scheduled: Scheduled[];
   seq: number;
   nextId: number;
@@ -194,6 +293,11 @@ export type BattleEvent =
   | { type: 'generalFormed'; generalId: number; side: Side }
   | { type: 'generalLevel'; generalId: number; level: number }
   | { type: 'recycled'; actorId: number; side: Side }
+  | { type: 'bossSpawn'; side: Side; bossId: number }
+  | { type: 'bossCast'; side: Side; bossId: number; x: number; y: number }
+  | { type: 'skill'; side: Side; name: string; x: number; y: number }
+  | { type: 'blast'; x: number; y: number; r: number }
+  | { type: 'buff'; targetId: number; buffType: number; x: number; y: number }
   | { type: 'expanded'; x: number; y: number }
   | { type: 'waveStart'; wave: number }
   | { type: 'ended'; result: BattleResult };

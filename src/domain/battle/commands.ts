@@ -1,5 +1,6 @@
 // 玩家與 AI 共用的命令入口：validate → apply。命令只表達「想做什麼」，結果由規則決定。
 import type { GameData } from '../../data';
+import { clearBuffs, inheritGlobals, onUnitLevelUp, unitPinned, unitSuppressed } from './buffs';
 import { allocId, schedule } from './create';
 import { dissolveGeneralOf, feedAmount, feedTarget, gainExp, generalMaxLevel, tryFormGeneral } from './generals';
 import { nextInt } from './rng';
@@ -67,6 +68,7 @@ function recruit(w: World, side: Side, ctx: StepContext): CommandResult {
     const actor: Actor = { id, side, token, kind: kindOfToken(token), level: 1, loc: { c: 'incoming', i }, cooldown: 0, generalId: null, exp: 0 };
     w.actors[id] = actor;
     camp.slots[i] = id;
+    if (actor.kind === 'soldier') inheritGlobals(w, id, side, 'units', ctx);
     // 玩家：每張錯開 100ms、飛行 500ms 後落位；AI 直接到位
     const delay = side === 0 ? rules.playerFlyMs + rules.playerStaggerMs * i : 0;
     schedule(w, ticks(delay), { kind: 'enterSlot', actorId: id });
@@ -112,6 +114,7 @@ function clearLoc(w: World, a: Actor): void {
 
 export function removeActor(w: World, a: Actor): void {
   dissolveGeneralOf(w, a);
+  clearBuffs(w, a.id);
   clearLoc(w, a);
   delete w.actors[a.id];
 }
@@ -130,6 +133,7 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
   if (!a) return { result: { ok: false, reason: '單位已不存在' } };
   if (a.side !== side) return { result: { ok: false, reason: '不是己方單位' } };
   if (a.loc.c === 'incoming') return { result: { ok: false, reason: '單位還在路上' } };
+  if (unitPinned(w, a.id)) return { result: { ok: false, reason: '單位受控制，無法移動' } };
   const from = a.loc;
   if (from.c === to.c && (from.c === 'board' ? from.x === (to as BoardLoc).x && from.y === (to as BoardLoc).y : from.i === (to as SlotLoc).i)) {
     return { result: { ok: false, reason: '位置沒有改變' } };
@@ -143,8 +147,10 @@ function checkMove(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc
   const b = w.actors[otherId];
   if (!b) return { result: { ok: false, reason: '目標不存在' } };
   if (b.loc.c === 'incoming') return { result: { ok: false, reason: '欄位正在征兵' } };
+  if (unitPinned(w, b.id)) return { result: { ok: false, reason: '目標受控制，無法交換' } };
   if (a.kind === 'shovel' && to.c === 'board') return { result: { ok: false, reason: '這塊地上已有單位' } };
   if (a.kind === 'soldier' && b.kind === 'soldier' && a.token === b.token) {
+    if (unitSuppressed(w, a.id) || unitSuppressed(w, b.id)) return { result: { ok: false, reason: '受壓制不能合成' } };
     if (a.level !== b.level) return { result: { ok: false, reason: '等級不同不能合成' } };
     if (b.level >= SOLDIER_MAX_LEVEL) return { result: { ok: false, reason: '已達最高等級' } };
     return { result: ok, plan: 'merge', actor: a, other: b };
@@ -189,6 +195,7 @@ function move(w: World, side: Side, actorId: number, to: BoardLoc | SlotLoc, ctx
     case 'merge':
       removeActor(w, a);
       b!.level += 1;
+      onUnitLevelUp(w, b!.id);
       ctx.events.push({ type: 'merged', actorId: b!.id, level: b!.level });
       break;
     case 'swap':

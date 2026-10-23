@@ -1,5 +1,6 @@
 // 武將：同一列、相鄰、依姓名順序排列的名字字自動成形（原版 Kh.sD/LD）；移開任一字即拆開（Kh.QB）。
 // 經驗存在武將與組成字上，拆開再合沿用較大者。
+import { clearBuffs, inheritGlobals } from './buffs';
 import { allocId } from './create';
 import { CELL, type Actor, type General, type Pt, type Side, type StepContext, type World } from './types';
 import type { GameData } from '../../data';
@@ -63,10 +64,13 @@ export function tryFormGeneral(w: World, a: Actor, ctx: StepContext): General | 
       level: 1,
       exp,
       cooldown: 0,
+      skillCount: 0,
+      busyUntil: 0,
     };
     g.level = levelFromExp(def, exp, ctx.data);
     for (const p of parts) p.generalId = g.id;
     w.generals[g.id] = g;
+    inheritGlobals(w, g.id, g.side, 'units', ctx);
     ctx.events.push({ type: 'generalFormed', generalId: g.id, side: g.side });
     return g;
   }
@@ -87,6 +91,8 @@ export function dissolveGeneralOf(w: World, a: Actor): void {
     }
   }
   delete w.generals[g.id];
+  clearBuffs(w, g.id);
+  for (const s of Object.values(w.skills)) if (s.kind === 'phantom' && s.generalId === g.id) delete w.skills[s.id];
 }
 
 /** 增加經驗並重算等級；普通組滿 3 級後不再累積（原版 Ta.wD） */
