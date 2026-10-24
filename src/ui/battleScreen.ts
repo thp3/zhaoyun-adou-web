@@ -17,6 +17,7 @@ import {
 } from '../render/battleCanvas';
 import { BattleFx } from '../render/fx';
 import { h } from './dom';
+import { placeBeside, type Rect } from './popover';
 import { describeActor, type UnitInfo } from './unitInfo';
 
 /** 首局教程提示（依步驟） */
@@ -38,15 +39,21 @@ export class BattleScreen {
     wave: h('span', { class: 'hud-wave' }),
     lives: h('span', { class: 'hud-lives' }),
     gold: h('strong', { class: 'hud-gold' }),
-    recruit: h('button', { class: 'primary' }),
   };
+  private readonly recruit = h('button', { class: 'primary recruit-bar' });
+  /** 戰場區：佔滿 HUD 與下方按鈕以外的高度，畫布在裡面等比縮放 */
+  private readonly stage = h('div', { class: 'stage' });
+  private readonly stageObserver = new ResizeObserver(() => this.resize());
+  /** 畫布目前的 CSS 尺寸，也是單位資訊浮窗的座標範圍 */
+  private cssSize = { w: 0, h: 0 };
   private readonly toast = h('div', { class: 'toast', role: 'status', 'aria-live': 'polite' });
   private readonly overlay = h('div', { class: 'backdrop', hidden: true });
   private readonly itemBar = h('div', { class: 'item-bar', 'aria-label': '我方道具' });
   private readonly tip = h('div', { class: 'tutorial-tip', role: 'status', hidden: true });
-  private readonly aiItems = h('div', { class: 'item-ai muted' });
+  private readonly aiItems = h('span', { class: 'hud-ai muted' });
   private readonly unitPanel = h('section', { class: 'unit-info', 'aria-label': '單位資訊', 'aria-live': 'polite', hidden: true });
   private unitSig = '';
+  private popPos = '';
   /** 點選中的單位（點一下顯示資訊，再點一次或點空地取消） */
   private selected: number | null = null;
   private selectedInfo: UnitInfo | null = null;
@@ -79,7 +86,8 @@ export class BattleScreen {
     this.view = view;
     this.canvas = h('canvas', { class: 'battle-canvas', 'aria-label': '戰場' });
     this.ctx2d = this.canvas.getContext('2d')!;
-    this.hud.recruit.addEventListener('click', () => session.enqueue({ type: 'RECRUIT', side: 0 }));
+    this.recruit.addEventListener('click', () => session.enqueue({ type: 'RECRUIT', side: 0 }));
+    this.stage.append(h('div', { class: 'stage-inner' }, this.canvas, this.tip, this.toast, this.unitPanel));
     this.root = h(
       'main',
       { class: 'screen battle' },
@@ -91,27 +99,25 @@ export class BattleScreen {
           'div',
           { class: 'hud-line' },
           h('span', null, '資金 ', this.hud.gold),
-          h('span', { class: 'hud-actions' }, this.hud.recruit, h('button', { onclick: () => app.pause('USER') }, '暫停')),
+          this.aiItems,
+          h('button', { onclick: () => app.pause('USER') }, '暫停'),
         ),
       ),
-      this.tip,
-      h('div', { class: 'canvas-wrap' }, this.canvas, this.toast),
-      this.unitPanel,
+      this.stage,
       this.itemBar,
-      this.aiItems,
+      this.recruit,
       this.overlay,
     );
     this.palette = readPalette(document.documentElement);
     this.bindInput();
     this.offEvents = app.onBattleEvents((evs) => this.onEvents(evs));
-    window.addEventListener('resize', this.resize);
+    this.stageObserver.observe(this.stage);
     matchMedia('(prefers-color-scheme: dark)').addEventListener('change', this.repaint);
     const loop = () => {
       this.draw();
       this.rafId = requestAnimationFrame(loop);
     };
     this.rafId = requestAnimationFrame(loop);
-    queueMicrotask(this.resize);
     this.sync(view);
   }
 
@@ -119,7 +125,7 @@ export class BattleScreen {
     cancelAnimationFrame(this.rafId);
     clearTimeout(this.toastTimer);
     this.offEvents();
-    window.removeEventListener('resize', this.resize);
+    this.stageObserver.disconnect();
     matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', this.repaint);
   }
 
@@ -137,13 +143,20 @@ export class BattleScreen {
     this.palette = readPalette(document.documentElement);
   };
 
-  private resize = () => {
-    const cssW = this.canvas.clientWidth || BOARD_W;
+  /** 畫布等比放到戰場區裝得下的最大尺寸（寬、高都不超出） */
+  private resize(): void {
+    const { clientWidth: w, clientHeight: h } = this.stage;
+    if (!w || !h) return;
+    const cssW = Math.floor(Math.min(w, (h * BOARD_W) / VIEW_H));
+    const cssH = (cssW * VIEW_H) / BOARD_W;
+    this.cssSize = { w: cssW, h: cssH };
+    this.canvas.style.width = `${cssW}px`;
+    this.canvas.style.height = `${cssH}px`;
     const dpr = Math.min(3, window.devicePixelRatio || 1);
     this.canvas.width = Math.round(cssW * dpr);
-    this.canvas.height = Math.round(((cssW * VIEW_H) / BOARD_W) * dpr);
+    this.canvas.height = Math.round(cssH * dpr);
     this.repaint();
-  };
+  }
 
   private pauseDialog(): HTMLElement {
     const wave = this.session.world.wave.wave;
@@ -250,14 +263,32 @@ export class BattleScreen {
     if (this.armed !== null) this.showToast('點選要使用的目標');
   }
 
-  /** 單位資訊面板：內容有變才重建 */
-  private updateUnitPanel(): void {
+  /** 單位資訊浮窗：拖曳中隱藏；內容有變才重建，位置有變才寫入 */
+  private updateUnitPanel(dragging: boolean): void {
     const info = this.selectedInfo;
-    const sig = info ? JSON.stringify([info.title, info.rows, info.notes]) : '';
+    const rect = dragging ? null : this.selectedRect();
+    this.unitPanel.hidden = !info || !rect;
+    if (!info || !rect) return;
+    this.fillUnitPanel(info);
+    const k = this.cssSize.w / BOARD_W;
+    const p = placeBeside(
+      { x: rect.x * k, y: rect.y * k, w: rect.w * k, h: rect.h * k },
+      this.unitPanel.offsetWidth,
+      this.unitPanel.offsetHeight,
+      this.cssSize.w,
+      this.cssSize.h,
+    );
+    const pos = `${p.left},${p.top}`;
+    if (pos === this.popPos) return;
+    this.popPos = pos;
+    this.unitPanel.style.left = `${p.left}px`;
+    this.unitPanel.style.top = `${p.top}px`;
+  }
+
+  private fillUnitPanel(info: UnitInfo): void {
+    const sig = JSON.stringify([info.title, info.rows, info.notes]);
     if (sig === this.unitSig) return;
     this.unitSig = sig;
-    this.unitPanel.hidden = !info;
-    if (!info) return this.unitPanel.replaceChildren();
     this.unitPanel.classList.toggle('enemy', info.side === 1);
     this.unitPanel.replaceChildren(
       h(
@@ -271,6 +302,14 @@ export class BattleScreen {
     );
   }
 
+  /** 選取單位的外框（世界座標）：陣地上取組成格，征兵欄取欄位 */
+  private selectedRect(): Rect | null {
+    const cell = this.selectedInfo?.cells[0];
+    if (cell) return { x: cell.x * CELL, y: cell.y * CELL, w: cell.w * CELL, h: CELL };
+    const loc = this.selected === null ? undefined : this.session.world.actors[this.selected]?.loc;
+    return loc?.c === 'slot' ? slotRect(loc.i) : null;
+  }
+
   private select(id: number | null): void {
     this.selected = id;
     this.selectedInfo = id === null ? null : describeActor(this.session.world, id, this.view.data!);
@@ -279,7 +318,6 @@ export class BattleScreen {
 
   private updateHud(): void {
     this.updateItems();
-    this.updateUnitPanel();
     const t = this.session.world.tutorial;
     const tipText = t ? TUTORIAL_TIPS[t.step] : '';
     this.tip.hidden = !tipText;
@@ -303,8 +341,8 @@ export class BattleScreen {
     setText(this.hud.lives, w.aiEnabled ? `我 ${hearts(w.camps[0].lives)}　敵 ${hearts(w.camps[1].lives)}` : `阿斗 ${hearts(w.camps[0].lives)}`);
     setText(this.hud.gold, String(Math.floor(w.camps[0].gold)));
     const cost = w.camps[0].recruitCost;
-    setText(this.hud.recruit, `征兵 ${cost}`);
-    this.hud.recruit.disabled = w.camps[0].gold < cost || this.view.state !== 'BATTLE_RUNNING';
+    setText(this.recruit, `征兵 ${cost}`);
+    this.recruit.disabled = w.camps[0].gold < cost || this.view.state !== 'BATTLE_RUNNING';
   }
 
   private draw(): void {
@@ -332,6 +370,7 @@ export class BattleScreen {
       showDamage: this.view.profile?.settings.showDamageNumbers ?? true,
     });
     this.updateHud();
+    this.updateUnitPanel(drag !== null);
   }
 
   // ---------- 輸入：畫布像素 → 世界座標 → 命令 ----------

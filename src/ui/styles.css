@@ -403,52 +403,72 @@ select { font: inherit; color: var(--ink); background: var(--paper); border: 1px
 .codex-card .head { display: flex; align-items: center; gap: 10px; }
 
 /* ---------- 對局 ---------- */
-.battle { max-width: 560px; padding: 8px 8px 16px; display: flex; flex-direction: column; gap: 8px; }
-.hud { display: flex; flex-direction: column; gap: 4px; font-size: .95rem; }
+/* 整個對局畫面剛好一個視窗高、不捲動：戰場區吃掉剩下的高度，畫布在裡面等比縮放 */
+.battle { max-width: 560px; height: 100vh; height: 100dvh; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+.battle > * { flex: none; }
+.hud { display: flex; flex-direction: column; gap: 2px; font-size: .95rem; }
 .hud-line { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .hud-wave { font-family: var(--font-serif); }
 .hud-lives { color: var(--seal); letter-spacing: .1em; }
 .hud-gold { font-size: 1.2rem; font-variant-numeric: tabular-nums; }
-.hud-actions { display: flex; gap: 6px; }
+.hud-ai { flex: 1; min-width: 0; font-size: .8rem; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hud button { padding: .4rem .8rem; }
-.canvas-wrap { position: relative; }
-.battle-canvas { display: block; width: 100%; height: auto; aspect-ratio: 640 / 950; touch-action: none; user-select: none; border-radius: var(--radius); border: 1px solid var(--line); }
+.battle > .stage { flex: 1; min-height: 0; overflow: hidden; display: grid; place-items: center; }
+.stage-inner { position: relative; }
+/* 外框用 outline，不佔版面，畫布的 CSS 尺寸就是 resize() 算出的大小 */
+.battle-canvas { display: block; touch-action: none; user-select: none; border-radius: var(--radius); outline: 1px solid var(--line); outline-offset: -1px; }
+.recruit-bar { width: 100%; min-height: 52px; font-family: var(--font-serif); font-size: 1.15rem; letter-spacing: .2em; }
 .toast {
-  position: absolute; left: 50%; top: 12px; transform: translateX(-50%);
+  position: absolute; left: 50%; top: 12px; z-index: 3; transform: translateX(-50%);
   background: var(--ink); color: var(--paper);
   padding: .35rem .9rem; border-radius: 999px; font-size: .9rem;
   opacity: 0; transition: opacity .2s; pointer-events: none; white-space: nowrap;
 }
 .toast.show { opacity: .92; }
 [hidden] { display: none !important; }
-.item-bar { display: flex; flex-wrap: wrap; gap: 6px; }
-.item { font-family: var(--font-serif); font-size: .95rem; padding: .35rem .7rem; flex-direction: column; gap: 0; }
+/* 道具多時橫向捲動，不換行撐高；下緣留空給按鈕的厚度陰影 */
+.item-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+.item { flex: none; font-family: var(--font-serif); font-size: .95rem; padding: .35rem .7rem; flex-direction: column; gap: 0; }
 .item.armed { outline: 3px solid var(--gold); outline-offset: 1px; }
 .item.passive { border: 1px dashed var(--line); border-radius: var(--radius); color: var(--ink-2); padding: .35rem .7rem; }
-.item-ai { font-size: .8rem; }
-.tutorial-tip { padding: .5rem .8rem; border-left: 4px solid var(--gold); background: var(--paper-2); font-size: .95rem; border-radius: 8px; }
+/* 教學提示疊在戰場上緣，不佔版面、不擋點擊 */
+.tutorial-tip {
+  position: absolute; top: 6px; left: 6px; right: 6px; z-index: 1; pointer-events: none;
+  padding: .4rem .7rem; border-left: 4px solid var(--gold); border-radius: 8px;
+  background: color-mix(in srgb, var(--paper-2) 88%, transparent); box-shadow: 0 2px 8px var(--shadow);
+  font-size: .9rem;
+}
 
-/* 對局中點選單位的資訊 */
-.unit-info { padding: .5rem .8rem; border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: var(--radius); background: var(--paper-2); }
+/* 對局中點選單位的資訊：浮在單位旁，位置由 updateUnitPanel() 設定 */
+.unit-info {
+  position: absolute; left: 0; top: 0; z-index: 2;
+  width: max-content; max-width: min(220px, 100%);
+  padding: .35rem .6rem; font-size: .85rem;
+  border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 10px;
+  background: var(--paper-3); box-shadow: 0 4px 14px var(--shadow);
+}
 .unit-info.enemy { border-left-color: var(--danger); }
-.unit-info-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.unit-info h2 { margin: 0; font-size: 1.05rem; font-family: var(--font-serif); }
-.unit-info-close { padding: .1rem .6rem; font-size: 1.1rem; line-height: 1.2; }
-.unit-info dl { display: grid; grid-template-columns: auto 1fr; gap: .15rem .9rem; margin: .4rem 0 0; font-size: .92rem; }
+.unit-info-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.unit-info h2 { margin: 0; font-size: 1rem; font-family: var(--font-serif); }
+.unit-info-close { padding: 0 .5rem; font-size: 1.1rem; line-height: 1; }
+.unit-info dl { display: grid; grid-template-columns: auto 1fr; gap: .1rem .7rem; margin: .3rem 0 0; }
 .unit-info dt { color: var(--ink-2); }
 .unit-info dd { margin: 0; font-variant-numeric: tabular-nums; }
-.unit-info p { margin: .35rem 0 0; }
+.unit-info p { margin: .3rem 0 0; }
 
 /* ---------- 手機：取消點兩下放大、保證點擊面積、避開瀏海與圓角 ---------- */
 button, .item, select, input { touch-action: manipulation; }
 button { min-height: 44px; }
-.hud button, .unit-info-close { min-height: 40px; }
+.hud button { min-height: 40px; }
+.unit-info-close { min-height: 32px; min-width: 32px; }
 .screen {
   padding-left: max(16px, env(safe-area-inset-left));
   padding-right: max(16px, env(safe-area-inset-right));
   padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
-.battle { padding-left: max(8px, env(safe-area-inset-left)); padding-right: max(8px, env(safe-area-inset-right)); }
+.battle {
+  padding: max(6px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+}
 html { -webkit-text-size-adjust: 100%; }
 
 /* ---------- 進場動畫：只在切換畫面時播（main.ts 設 data-enter），同畫面內重繪不重播 ---------- */
